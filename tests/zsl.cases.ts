@@ -1,6 +1,9 @@
+import type { LiteralValue, SourceSpan } from '../src/ast/index.js'
+
 export type Context = Readonly<Record<string, unknown>>
 export type ParseCase = { name: string; input: string }
-export type EvalCase = ParseCase & { expected: number | boolean }
+export type EvalCase = ParseCase & { expected: LiteralValue }
+type SyntaxCase = ParseCase & { span: SourceSpan }
 
 const p = (name: string, input: string): ParseCase => ({ name, input })
 const e = (
@@ -12,8 +15,31 @@ const e = (
   input,
   expected,
 })
+const syntax = (name: string, input: string, span: SourceSpan): SyntaxCase => ({
+  name,
+  input,
+  span,
+})
+
+export const literalEvaluationCases: EvalCase[] = [
+  e('integer literal', '4', 4),
+  e('decimal literal', '01.25', 1.25),
+  e('single-quoted literal', "'event'", 'event'),
+  e('escaped line feed', '"line\\nfeed"', 'line\nfeed'),
+  e('true literal', 'true', true),
+  e('false literal', 'false', false),
+  e('null literal', 'null', null),
+  e('empty string', "''", ''),
+  e(
+    'escaped quotes and backslash',
+    String.raw`'it\'s \"ZSL\"\\'`,
+    'it\'s "ZSL"\\',
+  ),
+  e('escaped carriage return and tab', '"\\r\\t"', '\r\t'),
+]
 
 export const evaluationCases: EvalCase[] = [
+  ...literalEvaluationCases,
   e('addition', '1 + 2', 3),
   e('subtraction', '7 - 3', 4),
   e('multiplication', '3 * 4', 12),
@@ -29,8 +55,19 @@ export const evaluationCases: EvalCase[] = [
   e('zero is not null', '0 ?? 10', 0),
 ]
 
+export const literalParseRejectCases: SyntaxCase[] = [
+  syntax('empty', '', { start: 0, end: 0 }),
+  syntax('whitespace only', ' \t\r\n', { start: 4, end: 4 }),
+  syntax('adjacent literals', '4 5', { start: 2, end: 3 }),
+  syntax('unclosed string', "'event", { start: 0, end: 6 }),
+  syntax('unclosed escape', "'event\\", { start: 0, end: 7 }),
+  syntax('unsupported string escape', "'\\q'", { start: 1, end: 3 }),
+  syntax('missing integer part', '.5', { start: 0, end: 1 }),
+  syntax('missing fractional part', '4.', { start: 1, end: 2 }),
+]
+
 export const parseRejectCases: ParseCase[] = [
-  p('empty', ''),
+  ...literalParseRejectCases,
   p('unclosed group', '(1 + 2'),
   p('missing operand', '1 +'),
   p('incomplete ternary', 'true ? 1'),

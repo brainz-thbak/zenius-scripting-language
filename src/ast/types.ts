@@ -28,6 +28,8 @@ export type ExpressionAst = { readonly span: SourceSpan } & (
     }
 )
 
+export type LiteralAst = Extract<ExpressionAst, { kind: 'literal' }>
+
 export type TemplatePart =
   | { readonly kind: 'text'; readonly value: string }
   | { readonly kind: 'expression'; readonly expression: ExpressionAst }

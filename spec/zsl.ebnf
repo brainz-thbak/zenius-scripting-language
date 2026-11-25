@@ -1,1 +1,18 @@
-(* ZSL template and expression grammar *)
+(* ZSL expression grammar *)
+
+expression input = { whitespace }, expression, { whitespace }, ? end of input ? ;
+expression = literal ;
+literal = number | string | boolean | null ;
+
+number = digit, { digit }, [ ".", digit, { digit } ] ;
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+string = "'", { single quoted character | escape sequence }, "'"
+       | '"', { double quoted character | escape sequence }, '"' ;
+single quoted character = ? any UTF-16 code unit except U+0027, U+005C, and U+0000 through U+001F ? ;
+double quoted character = ? any UTF-16 code unit except U+0022, U+005C, and U+0000 through U+001F ? ;
+escape sequence = '\', ( '\' | "'" | '"' | "n" | "r" | "t" ) ;
+
+boolean = "true" | "false" ;
+null = "null" ;
+whitespace = " " | ? U+0009 ? | ? U+000A ? | ? U+000D ? ;

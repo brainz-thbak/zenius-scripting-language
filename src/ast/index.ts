@@ -1,6 +1,7 @@
 export type {
   BinaryOperator,
   ExpressionAst,
+  LiteralAst,
   LiteralValue,
   SourceSpan,
   TemplateAst,
