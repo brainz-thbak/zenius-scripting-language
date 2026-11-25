@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { ZslValidationError } from '../src/exception/index.js'
 import { readToken } from '../src/lexer/index.js'
 import { parseExpression } from '../src/parser/index.js'
-import { literalEvaluationCases, literalParseRejectCases } from './zsl.cases.js'
+import {
+  arithmeticParseRejectCases,
+  literalEvaluationCases,
+  literalParseRejectCases,
+} from './zsl.cases.js'
 
 describe('readToken', () => {
   it('reads a single token at a time from source offsets', () => {
@@ -24,6 +28,23 @@ describe('readToken', () => {
       span: { start: 9, end: 9 },
     })
   })
+
+  it('reads arithmetic operators and parentheses with their original ranges', () => {
+    const source = '( + )'
+    expect(readToken(source)).toEqual({
+      kind: 'leftParen',
+      span: { start: 0, end: 1 },
+    })
+    expect(readToken(source, 1)).toEqual({
+      kind: 'operator',
+      operator: '+',
+      span: { start: 2, end: 3 },
+    })
+    expect(readToken(source, 3)).toEqual({
+      kind: 'rightParen',
+      span: { start: 4, end: 5 },
+    })
+  })
 })
 
 describe('parseExpression', () => {
@@ -43,14 +64,44 @@ describe('parseExpression', () => {
     })
   })
 
-  it.each(literalParseRejectCases)('rejects $name', ({ input, span }) => {
-    expect(() => parseExpression(input)).toThrow(
-      expect.objectContaining({
-        constructor: ZslValidationError,
-        issues: [expect.objectContaining({ kind: 'syntax', span })],
-      }),
-    )
+  it('groups parentheses before multiplication and includes them in the span', () => {
+    expect(parseExpression(' (1 + 2) * 3 ')).toEqual({
+      kind: 'binary',
+      operator: '*',
+      left: {
+        kind: 'binary',
+        operator: '+',
+        left: { kind: 'literal', value: 1, span: { start: 2, end: 3 } },
+        right: { kind: 'literal', value: 2, span: { start: 6, end: 7 } },
+        span: { start: 1, end: 8 },
+      },
+      right: { kind: 'literal', value: 3, span: { start: 11, end: 12 } },
+      span: { start: 1, end: 12 },
+    })
   })
+
+  it('parses 20,000 nested groups and keeps the full source range', () => {
+    const depth = 20_000
+    const input = `${'('.repeat(depth)}1${')'.repeat(depth)}`
+
+    expect(parseExpression(input)).toEqual({
+      kind: 'literal',
+      value: 1,
+      span: { start: 0, end: input.length },
+    })
+  })
+
+  it.each([...literalParseRejectCases, ...arithmeticParseRejectCases])(
+    'rejects $name',
+    ({ input, span }) => {
+      expect(() => parseExpression(input)).toThrow(
+        expect.objectContaining({
+          constructor: ZslValidationError,
+          issues: [expect.objectContaining({ kind: 'syntax', span })],
+        }),
+      )
+    },
+  )
 
   it.each(['-4', '1e3', '0x10', 'TRUE', '\u00a04', "'line\nfeed'"])(
     'rejects %j outside the literal grammar',

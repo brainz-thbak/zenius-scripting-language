@@ -1,8 +1,15 @@
-import type { LiteralValue, SourceSpan } from '../ast/index.js'
+import type {
+  ArithmeticOperator,
+  LiteralValue,
+  SourceSpan,
+} from '../ast/index.js'
 import { ZslValidationError } from '../exception/index.js'
 
 export type Token = { readonly span: SourceSpan } & (
   | { readonly kind: 'literal'; readonly value: LiteralValue }
+  | { readonly kind: 'operator'; readonly operator: ArithmeticOperator }
+  | { readonly kind: 'leftParen' }
+  | { readonly kind: 'rightParen' }
   | { readonly kind: 'eof' }
 )
 
@@ -25,6 +32,21 @@ export function readToken(source: string, offset = 0): Token {
   }
 
   const character = source.charAt(start)
+  switch (character) {
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+      return {
+        kind: 'operator',
+        operator: character,
+        span: { start, end: start + 1 },
+      }
+    case '(':
+      return { kind: 'leftParen', span: { start, end: start + 1 } }
+    case ')':
+      return { kind: 'rightParen', span: { start, end: start + 1 } }
+  }
   if (character === '"' || character === "'") {
     return readString(source, start, character)
   }

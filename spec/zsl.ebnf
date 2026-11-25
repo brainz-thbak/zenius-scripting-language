@@ -1,7 +1,11 @@
-(* ZSL expression grammar *)
+(* ZSL 표현식 문법 *)
 
-expression input = { whitespace }, expression, { whitespace }, ? end of input ? ;
-expression = literal ;
+expression input = spacing, expression, spacing, ? end of input ? ;
+expression = sum ;
+(* 같은 우선순위의 연산이 이어지면 왼쪽부터 묶는다. *)
+sum = product, { spacing, ( "+" | "-" ), spacing, product } ;
+product = primary, { spacing, ( "*" | "/" ), spacing, primary } ;
+primary = literal | "(", spacing, expression, spacing, ")" ;
 literal = number | string | boolean | null ;
 
 number = digit, { digit }, [ ".", digit, { digit } ] ;
@@ -15,4 +19,5 @@ escape sequence = '\', ( '\' | "'" | '"' | "n" | "r" | "t" ) ;
 
 boolean = "true" | "false" ;
 null = "null" ;
+spacing = { whitespace } ;
 whitespace = " " | ? U+0009 ? | ? U+000A ? | ? U+000D ? ;

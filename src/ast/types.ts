@@ -5,30 +5,44 @@ export interface SourceSpan {
 
 export type LiteralValue = string | number | boolean | null
 
-export type BinaryOperator = '+' | '-' | '*' | '/' | '&&' | '||' | '??'
+export type ArithmeticOperator = '+' | '-' | '*' | '/'
 
-export type ExpressionAst = { readonly span: SourceSpan } & (
-  | { readonly kind: 'literal'; readonly value: LiteralValue }
-  | {
-      readonly kind: 'binary'
-      readonly operator: BinaryOperator
-      readonly left: ExpressionAst
-      readonly right: ExpressionAst
-    }
+export type BinaryOperator = ArithmeticOperator | '&&' | '||' | '??'
+
+interface LiteralAst {
+  readonly kind: 'literal'
+  readonly value: LiteralValue
+  readonly span: SourceSpan
+}
+
+interface BinaryAst<Operator extends BinaryOperator, Operand> {
+  readonly kind: 'binary'
+  readonly operator: Operator
+  readonly left: Operand
+  readonly right: Operand
+  readonly span: SourceSpan
+}
+
+export type ParsedExpressionAst =
+  | LiteralAst
+  | BinaryAst<ArithmeticOperator, ParsedExpressionAst>
+
+export type ExpressionAst =
+  | LiteralAst
+  | BinaryAst<BinaryOperator, ExpressionAst>
   | {
       readonly kind: 'conditional'
       readonly condition: ExpressionAst
       readonly whenTrue: ExpressionAst
       readonly whenFalse: ExpressionAst
+      readonly span: SourceSpan
     }
   | {
       readonly kind: 'call'
       readonly name: string
       readonly args: readonly ExpressionAst[]
+      readonly span: SourceSpan
     }
-)
-
-export type LiteralAst = Extract<ExpressionAst, { kind: 'literal' }>
 
 export type TemplatePart =
   | { readonly kind: 'text'; readonly value: string }

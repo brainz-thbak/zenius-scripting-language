@@ -38,8 +38,7 @@ export const literalEvaluationCases: EvalCase[] = [
   e('escaped carriage return and tab', '"\\r\\t"', '\r\t'),
 ]
 
-export const evaluationCases: EvalCase[] = [
-  ...literalEvaluationCases,
+export const arithmeticEvaluationCases: EvalCase[] = [
   e('addition', '1 + 2', 3),
   e('subtraction', '7 - 3', 4),
   e('multiplication', '3 * 4', 12),
@@ -47,6 +46,18 @@ export const evaluationCases: EvalCase[] = [
   e('precedence', '1 + 2 * 3', 7),
   e('parentheses', '(1 + 2) * 3', 9),
   e('nested parentheses', '((1 + 2) * (3 + 4))', 21),
+  e('left-associative subtraction', '8 - 3 - 2', 3),
+  e('left-associative division', '8 / 4 / 2', 1),
+  e('equal multiplication and division precedence', '24 / 3 * 2', 16),
+  e('decimal division', '3 / 2', 1.5),
+  e('subtraction below zero', '2 - 5', -3),
+  e('whitespace between tokens', '1\t+\r\n2', 3),
+  e('grouped string literal', '("event")', 'event'),
+]
+
+export const evaluationCases: EvalCase[] = [
+  ...literalEvaluationCases,
+  ...arithmeticEvaluationCases,
   e('ternary true', 'true ? 1 : 2', 1),
   e('ternary false', 'false ? 1 : 2', 2),
   e('logical and', 'true && false', false),
@@ -66,10 +77,18 @@ export const literalParseRejectCases: SyntaxCase[] = [
   syntax('missing fractional part', '4.', { start: 1, end: 2 }),
 ]
 
+export const arithmeticParseRejectCases: SyntaxCase[] = [
+  syntax('unclosed group', '(1 + 2', { start: 6, end: 6 }),
+  syntax('missing operand', '1 +', { start: 3, end: 3 }),
+  syntax('empty group', '()', { start: 1, end: 2 }),
+  syntax('operator in place of an operand', '1 + * 2', { start: 4, end: 5 }),
+  syntax('unmatched closing parenthesis', '1 + 2)', { start: 5, end: 6 }),
+  syntax('adjacent literals in a group', '(1 2)', { start: 3, end: 4 }),
+]
+
 export const parseRejectCases: ParseCase[] = [
   ...literalParseRejectCases,
-  p('unclosed group', '(1 + 2'),
-  p('missing operand', '1 +'),
+  ...arithmeticParseRejectCases,
   p('incomplete ternary', 'true ? 1'),
   p('multiple expressions', '1; 2'),
   p('assignment', 'a = 1'),
