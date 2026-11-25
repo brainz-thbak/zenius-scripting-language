@@ -1,0 +1,44 @@
+{
+  "name": "@zenius/zsl",
+  "version": "0.1.0-alpha.1",
+  "description": "A secure, restricted expression language for Zenius products.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "exports": {
+    "import": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "require": {
+      "types": "./dist/index.d.cts",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest watch",
+    "prepack": "npm run build"
+  },
+  "keywords": [],
+  "author": "th.bak <th.bak@brainz.co.kr>",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@biomejs/biome": "2.6.9",
+    "@types/node": "^24.19.2",
+    "typescript": "^6.0.3",
+    "unplugin-dts": "^1.1.2",
+    "vite": "^8.3.8",
+    "vitest": "^4.1.12"
+  }
+}
