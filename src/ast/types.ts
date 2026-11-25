@@ -15,37 +15,30 @@ interface LiteralAst {
   readonly span: SourceSpan
 }
 
-interface BinaryAst<Operand> {
+interface BinaryAst {
   readonly kind: 'binary'
   readonly operator: BinaryOperator
-  readonly left: Operand
-  readonly right: Operand
+  readonly left: ExpressionAst
+  readonly right: ExpressionAst
   readonly span: SourceSpan
 }
 
-interface ConditionalAst<Operand> {
+interface ConditionalAst {
   readonly kind: 'conditional'
-  readonly condition: Operand
-  readonly whenTrue: Operand
-  readonly whenFalse: Operand
+  readonly condition: ExpressionAst
+  readonly whenTrue: ExpressionAst
+  readonly whenFalse: ExpressionAst
   readonly span: SourceSpan
 }
 
-export type ParsedExpressionAst =
-  | LiteralAst
-  | BinaryAst<ParsedExpressionAst>
-  | ConditionalAst<ParsedExpressionAst>
+export interface CallAst {
+  readonly kind: 'call'
+  readonly name: string
+  readonly args: readonly ExpressionAst[]
+  readonly span: SourceSpan
+}
 
-export type ExpressionAst =
-  | LiteralAst
-  | BinaryAst<ExpressionAst>
-  | ConditionalAst<ExpressionAst>
-  | {
-      readonly kind: 'call'
-      readonly name: string
-      readonly args: readonly ExpressionAst[]
-      readonly span: SourceSpan
-    }
+export type ExpressionAst = LiteralAst | BinaryAst | ConditionalAst | CallAst
 
 export type TemplatePart =
   | { readonly kind: 'text'; readonly value: string }

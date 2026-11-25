@@ -3,11 +3,13 @@ import { ZslValidationError } from '../exception/index.js'
 
 export type Token = { readonly span: SourceSpan } & (
   | { readonly kind: 'literal'; readonly value: LiteralValue }
+  | { readonly kind: 'identifier'; readonly name: string }
   | { readonly kind: 'operator'; readonly operator: BinaryOperator }
   | { readonly kind: 'question' }
   | { readonly kind: 'colon' }
   | { readonly kind: 'leftParen' }
   | { readonly kind: 'rightParen' }
+  | { readonly kind: 'comma' }
   | { readonly kind: 'eof' }
 )
 
@@ -60,6 +62,8 @@ export function readToken(source: string, offset = 0): Token {
       return { kind: 'leftParen', span: { start, end: start + 1 } }
     case ')':
       return { kind: 'rightParen', span: { start, end: start + 1 } }
+    case ',':
+      return { kind: 'comma', span: { start, end: start + 1 } }
   }
   if (character === '"' || character === "'") {
     return readString(source, start, character)
@@ -68,7 +72,7 @@ export function readToken(source: string, offset = 0): Token {
     return readNumber(source, start)
   }
   if (/[a-zA-Z_]/.test(character)) {
-    return readKeyword(source, start)
+    return readIdentifier(source, start)
   }
   throw syntaxError('Unexpected character', start, characterEnd(source, start))
 }
@@ -138,12 +142,13 @@ function digitEnd(source: string, start: number): number {
   return end
 }
 
-function readKeyword(source: string, start: number): Token {
+function readIdentifier(source: string, start: number): Token {
   let end = start + 1
   while (/[a-zA-Z0-9_]/.test(source.charAt(end))) {
     end++
   }
-  switch (source.slice(start, end)) {
+  const name = source.slice(start, end)
+  switch (name) {
     case 'true':
       return literalToken(true, start, end)
     case 'false':
@@ -151,7 +156,7 @@ function readKeyword(source: string, start: number): Token {
     case 'null':
       return literalToken(null, start, end)
     default:
-      throw syntaxError('Unknown identifier', start, end)
+      return { kind: 'identifier', name, span: { start, end } }
   }
 }
 

@@ -1,10 +1,17 @@
 import type {
   ArithmeticOperator,
+  CallAst,
+  ExpressionAst,
   LiteralValue,
-  ParsedExpressionAst,
   SourceSpan,
 } from '../ast/index.js'
-import { ZslValidationError } from '../exception/index.js'
+import { validationError } from '../exception/index.js'
+import type { ZslContext } from '../expression/index.js'
+import {
+  type EvaluateFunction,
+  type EvaluatedArgument,
+  resolveCall,
+} from '../functions/functions.js'
 
 const arithmeticOperations: Readonly<
   Record<ArithmeticOperator, (left: number, right: number) => number>
@@ -18,11 +25,11 @@ const arithmeticOperations: Readonly<
 type PendingOperation =
   | {
       readonly kind: 'condition'
-      readonly node: Extract<ParsedExpressionAst, { kind: 'conditional' }>
+      readonly node: Extract<ExpressionAst, { kind: 'conditional' }>
     }
   | {
       readonly kind: 'left'
-      readonly node: Extract<ParsedExpressionAst, { kind: 'binary' }>
+      readonly node: Extract<ExpressionAst, { kind: 'binary' }>
     }
   | {
       readonly kind: 'arithmeticRight'
@@ -32,10 +39,20 @@ type PendingOperation =
       readonly span: SourceSpan
     }
   | { readonly kind: 'logicalRight'; readonly span: SourceSpan }
+  | {
+      readonly kind: 'call'
+      readonly node: CallAst
+      readonly evaluate: EvaluateFunction
+      readonly args: EvaluatedArgument[]
+      argumentSpan: SourceSpan
+    }
 
-export function evaluateExpression(ast: ParsedExpressionAst): LiteralValue {
+export function evaluateExpression(
+  ast: ExpressionAst,
+  context: ZslContext = {},
+): LiteralValue {
   const pending: PendingOperation[] = []
-  let value = descendToLiteral(ast, pending)
+  let value = descendToValue(ast, pending, context)
 
   for (let frame = pending.pop(); frame; frame = pending.pop()) {
     switch (frame.kind) {
@@ -47,7 +64,7 @@ export function evaluateExpression(ast: ParsedExpressionAst): LiteralValue {
             condition.span,
           )
         }
-        value = descendToLiteral(value ? whenTrue : whenFalse, pending)
+        value = descendToValue(value ? whenTrue : whenFalse, pending, context)
         break
       }
       case 'left': {
@@ -77,7 +94,7 @@ export function evaluateExpression(ast: ParsedExpressionAst): LiteralValue {
               span: binary.span,
             })
         }
-        value = descendToLiteral(binary.right, pending)
+        value = descendToValue(binary.right, pending, context)
         break
       }
       case 'arithmeticRight': {
@@ -95,22 +112,55 @@ export function evaluateExpression(ast: ParsedExpressionAst): LiteralValue {
       case 'logicalRight':
         requireBoolean(value, frame.span)
         break
+      case 'call': {
+        const { args, node } = frame
+        args.push({ value, span: frame.argumentSpan })
+        const next = node.args[args.length]
+        if (next === undefined) {
+          value = frame.evaluate(args, context, node.span)
+          break
+        }
+        frame.argumentSpan = next.span
+        pending.push(frame)
+        value = descendToValue(next, pending, context)
+        break
+      }
     }
   }
   return value
 }
 
-function descendToLiteral(
-  node: ParsedExpressionAst,
+function descendToValue(
+  node: ExpressionAst,
   pending: PendingOperation[],
+  context: ZslContext,
 ): LiteralValue {
   while (node.kind !== 'literal') {
-    if (node.kind === 'conditional') {
-      pending.push({ kind: 'condition', node })
-      node = node.condition
-    } else {
-      pending.push({ kind: 'left', node })
-      node = node.left
+    switch (node.kind) {
+      case 'conditional':
+        pending.push({ kind: 'condition', node })
+        node = node.condition
+        break
+      case 'binary':
+        pending.push({ kind: 'left', node })
+        node = node.left
+        break
+      case 'call': {
+        const evaluate = resolveCall(node)
+        const first = node.args[0]
+        if (first === undefined) {
+          return evaluate([], context, node.span)
+        }
+        pending.push({
+          kind: 'call',
+          node,
+          evaluate,
+          args: [],
+          argumentSpan: first.span,
+        })
+        node = first
+        break
+      }
     }
   }
   return node.value
@@ -128,11 +178,4 @@ function requireBoolean(value: LiteralValue, span: SourceSpan): boolean {
     throw validationError('Logical operands must be booleans', span)
   }
   return value
-}
-
-function validationError(
-  message: string,
-  span: SourceSpan,
-): ZslValidationError {
-  return new ZslValidationError([{ kind: 'validation', message, span }])
 }

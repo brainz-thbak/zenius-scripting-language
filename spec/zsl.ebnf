@@ -9,7 +9,11 @@ logical or = logical and, { spacing, "||", spacing, logical and } ;
 logical and = sum, { spacing, "&&", spacing, sum } ;
 sum = product, { spacing, ( "+" | "-" ), spacing, product } ;
 product = primary, { spacing, ( "*" | "/" ), spacing, primary } ;
-primary = literal | "(", spacing, expression, spacing, ")" ;
+primary = literal | call | "(", spacing, expression, spacing, ")" ;
+call = identifier, spacing, "(", spacing, [ arguments, spacing ], ")" ;
+arguments = expression, { spacing, ",", spacing, expression } ;
+identifier = ( ( letter | "_" ), { letter | digit | "_" } ) - ( boolean | null ) ;
+letter = ? A through Z or a through z ? ;
 literal = number | string | boolean | null ;
 
 number = digit, { digit }, [ ".", digit, { digit } ] ;

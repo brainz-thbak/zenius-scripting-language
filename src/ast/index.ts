@@ -1,9 +1,9 @@
 export type {
   ArithmeticOperator,
   BinaryOperator,
+  CallAst,
   ExpressionAst,
   LiteralValue,
-  ParsedExpressionAst,
   SourceSpan,
   TemplateAst,
   TemplatePart,

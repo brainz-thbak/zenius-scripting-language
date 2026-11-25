@@ -1,3 +1,4 @@
+import type { SourceSpan } from '../ast/index.js'
 import type { ZslIssue } from './types.js'
 
 export class ZslValidationError extends Error {
@@ -6,4 +7,11 @@ export class ZslValidationError extends Error {
   constructor(readonly issues: readonly ZslIssue[]) {
     super('ZSL validation failed')
   }
+}
+
+export function validationError(
+  message: string,
+  span: SourceSpan,
+): ZslValidationError {
+  return new ZslValidationError([{ kind: 'validation', message, span }])
 }

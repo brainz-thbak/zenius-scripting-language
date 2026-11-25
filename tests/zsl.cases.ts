@@ -1,7 +1,7 @@
 import type { LiteralValue, SourceSpan } from '../src/ast/index.js'
 
 export type Context = Readonly<Record<string, unknown>>
-export type ParseCase = { name: string; input: string }
+export type ParseCase = { name: string; input: string; span?: SourceSpan }
 export type EvalCase = ParseCase & { expected: LiteralValue }
 type SyntaxCase = ParseCase & { span: SourceSpan }
 
@@ -136,6 +136,22 @@ export const parseRejectCases: ParseCase[] = [
   ...literalParseRejectCases,
   ...arithmeticParseRejectCases,
   ...conditionalParseRejectCases,
+  syntax('missing call closing parenthesis', "GET('😀'", {
+    start: 8,
+    end: 8,
+  }),
+  syntax('missing argument and call closing parenthesis', 'GET(', {
+    start: 4,
+    end: 4,
+  }),
+  syntax('missing first argument', "GET(, 'x')", { start: 4, end: 5 }),
+  syntax('missing middle argument', "GET('😀',,'x')", { start: 9, end: 10 }),
+  syntax('trailing comma', "GET('a',)", { start: 8, end: 9 }),
+  syntax('missing comma', "GET('a' 'b')", { start: 8, end: 11 }),
+  syntax('comma in a group', "GET(('a','b'), 'c')", { start: 8, end: 9 }),
+  syntax('true is reserved', 'true()', { start: 4, end: 5 }),
+  syntax('false is reserved', 'false()', { start: 5, end: 6 }),
+  syntax('null is reserved', 'null()', { start: 4, end: 5 }),
   p('multiple expressions', '1; 2'),
   p('assignment', 'a = 1'),
   p('compound assignment', 'a += 1'),
@@ -150,13 +166,28 @@ export const parseRejectCases: ParseCase[] = [
   p('switch statement', 'switch (1) {}'),
   p('while statement', 'while (true) {}'),
   p('with statement', 'with (event) {}'),
-  p('dot access', 'event.severity'),
-  p('bracket access', 'event["severity"]'),
-  p('unknown call', 'unknown()'),
-  p('window', 'window'),
-  p('document', 'document'),
+  syntax('dot access', 'event.severity', { start: 5, end: 6 }),
+  syntax('bracket access', 'event["severity"]', { start: 5, end: 6 }),
+  p('dot access after a call', "GET('event', 'source').ip"),
+  p('bracket access after a call', "GET('event', 'source')['ip']"),
+  p('calling a returned value', "GET('event', 'severity')()"),
+  syntax('bare window identifier', 'window', { start: 0, end: 6 }),
+  syntax('bare document identifier after whitespace', ' document ', {
+    start: 1,
+    end: 9,
+  }),
+  syntax('bare Vue identifier', 'Vue', { start: 0, end: 3 }),
+]
+
+export const callCheckRejectCases: ParseCase[] = [
+  p('unknown function', 'unknown()'),
+  p('wrong case', "get('event', 'severity')"),
+  p('Object constructor', 'constructor()'),
+  p('Object method', 'toString()'),
+  p('Object prototype property', '__proto__()'),
   p('fetch', 'fetch("/")'),
   p('XHR', 'XMLHttpRequest()'),
-  p('Vue', 'Vue'),
   p('dayjs', 'dayjs()'),
+  p('GET without arguments', 'GET()'),
+  p('GET with one argument', "GET('event')"),
 ]

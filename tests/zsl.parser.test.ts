@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ZslValidationError } from '../src/exception/index.js'
 import { readToken } from '../src/lexer/index.js'
 import { parseExpression } from '../src/parser/index.js'
-import {
-  arithmeticParseRejectCases,
-  conditionalParseRejectCases,
-  literalEvaluationCases,
-  literalParseRejectCases,
-} from './zsl.cases.js'
+import { literalEvaluationCases, parseRejectCases } from './zsl.cases.js'
 
 describe('readToken', () => {
   it('reads a single token at a time from source offsets', () => {
@@ -82,6 +77,23 @@ describe('parseExpression', () => {
     })
   })
 
+  it('parses nested calls and an empty argument list with UTF-16 spans', () => {
+    expect(parseExpression(" GET ('😀', _next2()) ")).toEqual({
+      kind: 'call',
+      name: 'GET',
+      args: [
+        { kind: 'literal', value: '😀', span: { start: 6, end: 10 } },
+        {
+          kind: 'call',
+          name: '_next2',
+          args: [],
+          span: { start: 12, end: 20 },
+        },
+      ],
+      span: { start: 1, end: 21 },
+    })
+  })
+
   it('groups parentheses before multiplication and includes them in the span', () => {
     expect(parseExpression(' (1 + 2) * 3 ')).toEqual({
       kind: 'binary',
@@ -135,15 +147,15 @@ describe('parseExpression', () => {
     })
   })
 
-  it.each([
-    ...literalParseRejectCases,
-    ...arithmeticParseRejectCases,
-    ...conditionalParseRejectCases,
-  ])('rejects $name', ({ input, span }) => {
+  it.each(parseRejectCases)('rejects $name', ({ input, span }) => {
     expect(() => parseExpression(input)).toThrow(
       expect.objectContaining({
         constructor: ZslValidationError,
-        issues: [expect.objectContaining({ kind: 'syntax', span })],
+        issues: [
+          expect.objectContaining(
+            span === undefined ? { kind: 'syntax' } : { kind: 'syntax', span },
+          ),
+        ],
       }),
     )
   })

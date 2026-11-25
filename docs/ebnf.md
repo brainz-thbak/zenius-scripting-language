@@ -52,12 +52,12 @@ logical or = logical and, { spacing, "||", spacing, logical and } ;
 logical and = sum, { spacing, "&&", spacing, sum } ;
 sum = product, { spacing, ( "+" | "-" ), spacing, product } ;
 product = primary, { spacing, ( "*" | "/" ), spacing, primary } ;
-primary = literal | "(", spacing, expression, spacing, ")" ;
+primary = literal | call | "(", spacing, expression, spacing, ")" ;
 ```
 
 - `conditional`은 `null coalescing`으로 조건을 읽고, `?`와 `:`가 있으면 두 가지를 각각 `conditional`로 읽는다. 아래 규칙일수록 더 높은 우선순위의 연산을 읽는다.
 - `sum`은 `product` 하나로 시작하고, `+`나 `-` 뒤에 또 다른 `product`를 붙일 수 있다. `product`는 `*`나 `/`를 처리하므로 `1 + 2 * 3`을 읽을 때 `2 * 3`이 먼저 묶인다.
-- `primary`의 두 번째 선택지는 여는 괄호를 읽고 `expression` 규칙을 다시 사용한다. 그래서 `(1 + 2) * 3`은 괄호 안의 덧셈을 먼저 묶고, 괄호 안에 또 괄호를 쓸 수 있다.
+- `primary`는 리터럴, 함수 호출 또는 괄호로 감싼 표현식을 읽는다. 함수 호출의 각 인자와 괄호로 감싼 표현식에는 `expression` 규칙을 다시 적용한다. `(1 + 2) * 3`에서는 괄호 안의 덧셈이 먼저 묶인다.
 - 같은 우선순위의 이항 연산이 반복되면 파서는 왼쪽부터 묶는다. `8 / 4 / 2`는 `(8 / 4) / 2`로 읽는다. 이 결합 방향은 EBNF의 관련 주석에 명시돼 있다.
 
 연산자 앞뒤의 `spacing`도 생략할 수 있으므로 `1+2`와 `1 + 2`는 둘 다 문법에 맞는다.

@@ -1,2 +1,2 @@
 export type { ZslIssue } from './types.js'
-export { ZslValidationError } from './validation-error.js'
+export { ZslValidationError, validationError } from './validation-error.js'

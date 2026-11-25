@@ -1,6 +1,7 @@
 import type {
   BinaryOperator,
-  ParsedExpressionAst,
+  CallAst,
+  ExpressionAst,
   SourceSpan,
 } from '../ast/index.js'
 import { ZslValidationError } from '../exception/index.js'
@@ -16,26 +17,34 @@ const precedence: Readonly<Record<BinaryOperator, number>> = {
   '/': 5,
 }
 
+interface PendingCall {
+  readonly kind: 'call'
+  readonly name: string
+  readonly start: number
+  readonly args: ExpressionAst[]
+}
+
 type PendingExpression =
   | { readonly kind: 'group'; readonly start: number }
+  | PendingCall
   | {
       readonly kind: 'binary'
       readonly operator: BinaryOperator
-      readonly left: ParsedExpressionAst
+      readonly left: ExpressionAst
     }
   | {
       readonly kind: 'awaitingColon'
-      readonly condition: ParsedExpressionAst
+      readonly condition: ExpressionAst
     }
   | {
       readonly kind: 'awaitingFalseBranch'
-      readonly condition: ParsedExpressionAst
-      readonly whenTrue: ParsedExpressionAst
+      readonly condition: ExpressionAst
+      readonly whenTrue: ExpressionAst
     }
 
-export function parseExpression(source: string): ParsedExpressionAst {
+export function parseExpression(source: string): ExpressionAst {
   const pending: PendingExpression[] = []
-  let expression: ParsedExpressionAst | undefined
+  let expression: ExpressionAst | undefined
 
   consumeToken: for (
     let token = readToken(source);
@@ -43,15 +52,38 @@ export function parseExpression(source: string): ParsedExpressionAst {
     token = readToken(source, token.span.end)
   ) {
     if (expression === undefined) {
-      if (token.kind === 'leftParen') {
-        pending.push({ kind: 'group', start: token.span.start })
-        continue
+      switch (token.kind) {
+        case 'leftParen':
+          pending.push({ kind: 'group', start: token.span.start })
+          continue
+        case 'identifier': {
+          const open = readToken(source, token.span.end)
+          if (open.kind !== 'leftParen') {
+            throw syntaxError("Expected '(' after function name", token.span)
+          }
+          pending.push({
+            kind: 'call',
+            name: token.name,
+            start: token.span.start,
+            args: [],
+          })
+          token = open
+          continue
+        }
+        case 'literal':
+          expression = { kind: 'literal', value: token.value, span: token.span }
+          continue
+        case 'rightParen': {
+          const call = pending.at(-1)
+          if (call?.kind === 'call' && call.args.length === 0) {
+            pending.pop()
+            expression = finishCall(call, token.span.end)
+            continue
+          }
+          break
+        }
       }
-      if (token.kind !== 'literal') {
-        throw syntaxError('Expected an operand', token.span)
-      }
-      expression = { kind: 'literal', value: token.value, span: token.span }
-      continue
+      throw syntaxError('Expected an operand', token.span)
     }
 
     for (
@@ -78,6 +110,19 @@ export function parseExpression(source: string): ParsedExpressionAst {
             ...expression,
             span: { start: frame.start, end: token.span.end },
           }
+          continue consumeToken
+        case 'call':
+          if (token.kind === 'comma') {
+            frame.args.push(expression)
+            pending.push(frame)
+            expression = undefined
+            continue consumeToken
+          }
+          if (token.kind !== 'rightParen') {
+            throw syntaxError("Expected ',' or ')' after argument", token.span)
+          }
+          frame.args.push(expression)
+          expression = finishCall(frame, token.span.end)
           continue consumeToken
         case 'awaitingColon':
           if (token.kind !== 'colon') {
@@ -122,6 +167,15 @@ export function parseExpression(source: string): ParsedExpressionAst {
         throw syntaxError('Unexpected token after expression', token.span)
     }
     expression = undefined
+  }
+}
+
+function finishCall(call: PendingCall, end: number): CallAst {
+  return {
+    kind: 'call',
+    name: call.name,
+    args: call.args,
+    span: { start: call.start, end },
   }
 }
 
