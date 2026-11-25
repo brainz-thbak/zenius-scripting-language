@@ -1,13 +1,11 @@
-import type {
-  ArithmeticOperator,
-  LiteralValue,
-  SourceSpan,
-} from '../ast/index.js'
+import type { BinaryOperator, LiteralValue, SourceSpan } from '../ast/index.js'
 import { ZslValidationError } from '../exception/index.js'
 
 export type Token = { readonly span: SourceSpan } & (
   | { readonly kind: 'literal'; readonly value: LiteralValue }
-  | { readonly kind: 'operator'; readonly operator: ArithmeticOperator }
+  | { readonly kind: 'operator'; readonly operator: BinaryOperator }
+  | { readonly kind: 'question' }
+  | { readonly kind: 'colon' }
   | { readonly kind: 'leftParen' }
   | { readonly kind: 'rightParen' }
   | { readonly kind: 'eof' }
@@ -31,6 +29,18 @@ export function readToken(source: string, offset = 0): Token {
     return { kind: 'eof', span: { start, end: start } }
   }
 
+  const pair = source.slice(start, start + 2)
+  switch (pair) {
+    case '&&':
+    case '||':
+    case '??':
+      return {
+        kind: 'operator',
+        operator: pair,
+        span: { start, end: start + 2 },
+      }
+  }
+
   const character = source.charAt(start)
   switch (character) {
     case '+':
@@ -42,6 +52,10 @@ export function readToken(source: string, offset = 0): Token {
         operator: character,
         span: { start, end: start + 1 },
       }
+    case '?':
+      return { kind: 'question', span: { start, end: start + 1 } }
+    case ':':
+      return { kind: 'colon', span: { start, end: start + 1 } }
     case '(':
       return { kind: 'leftParen', span: { start, end: start + 1 } }
     case ')':

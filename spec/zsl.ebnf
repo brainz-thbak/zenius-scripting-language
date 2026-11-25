@@ -1,8 +1,12 @@
 (* ZSL 표현식 문법 *)
 
 expression input = spacing, expression, spacing, ? end of input ? ;
-expression = sum ;
-(* 같은 우선순위의 연산이 이어지면 왼쪽부터 묶는다. *)
+expression = conditional ;
+conditional = null coalescing, [ spacing, "?", spacing, conditional, spacing, ":", spacing, conditional ] ;
+(* 같은 우선순위의 이항 연산이 이어지면 왼쪽부터 묶는다. *)
+null coalescing = logical or, { spacing, "??", spacing, logical or } ;
+logical or = logical and, { spacing, "||", spacing, logical and } ;
+logical and = sum, { spacing, "&&", spacing, sum } ;
 sum = product, { spacing, ( "+" | "-" ), spacing, product } ;
 product = primary, { spacing, ( "*" | "/" ), spacing, primary } ;
 primary = literal | "(", spacing, expression, spacing, ")" ;

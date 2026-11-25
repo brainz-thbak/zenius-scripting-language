@@ -1,86 +1,141 @@
 import type {
-  ArithmeticOperator,
+  BinaryOperator,
   ParsedExpressionAst,
   SourceSpan,
 } from '../ast/index.js'
 import { ZslValidationError } from '../exception/index.js'
-import { readToken } from '../lexer/index.js'
+import { type Token, readToken } from '../lexer/index.js'
 
-const precedence: Readonly<Record<ArithmeticOperator, number>> = {
-  '+': 1,
-  '-': 1,
-  '*': 2,
-  '/': 2,
+const precedence: Readonly<Record<BinaryOperator, number>> = {
+  '??': 1,
+  '||': 2,
+  '&&': 3,
+  '+': 4,
+  '-': 4,
+  '*': 5,
+  '/': 5,
 }
 
 type PendingExpression =
   | { readonly kind: 'group'; readonly start: number }
   | {
       readonly kind: 'binary'
-      readonly operator: ArithmeticOperator
+      readonly operator: BinaryOperator
       readonly left: ParsedExpressionAst
+    }
+  | {
+      readonly kind: 'awaitingColon'
+      readonly condition: ParsedExpressionAst
+    }
+  | {
+      readonly kind: 'awaitingFalseBranch'
+      readonly condition: ParsedExpressionAst
+      readonly whenTrue: ParsedExpressionAst
     }
 
 export function parseExpression(source: string): ParsedExpressionAst {
   const pending: PendingExpression[] = []
-  let next = readToken(source)
+  let expression: ParsedExpressionAst | undefined
 
-  while (true) {
-    while (next.kind === 'leftParen') {
-      pending.push({ kind: 'group', start: next.span.start })
-      next = readToken(source, next.span.end)
-    }
-    if (next.kind !== 'literal') {
-      throw syntaxError('Expected an operand', next.span)
-    }
-    let expression: ParsedExpressionAst = {
-      kind: 'literal',
-      value: next.value,
-      span: next.span,
-    }
-    next = readToken(source, next.span.end)
-
-    for (let frame = pending.at(-1); frame; frame = pending.at(-1)) {
-      if (frame.kind === 'group') {
-        if (next.kind === 'operator') {
-          break
-        }
-        if (next.kind !== 'rightParen') {
-          throw syntaxError("Expected ')' after expression", next.span)
-        }
-        pending.pop()
-        expression = {
-          ...expression,
-          span: { start: frame.start, end: next.span.end },
-        }
-        next = readToken(source, next.span.end)
+  consumeToken: for (
+    let token = readToken(source);
+    ;
+    token = readToken(source, token.span.end)
+  ) {
+    if (expression === undefined) {
+      if (token.kind === 'leftParen') {
+        pending.push({ kind: 'group', start: token.span.start })
         continue
       }
-      if (
-        next.kind === 'operator' &&
-        precedence[next.operator] > precedence[frame.operator]
-      ) {
-        break
+      if (token.kind !== 'literal') {
+        throw syntaxError('Expected an operand', token.span)
       }
+      expression = { kind: 'literal', value: token.value, span: token.span }
+      continue
+    }
 
+    for (
+      let frame = pending.at(-1);
+      frame && shouldReduce(frame, token);
+      frame = pending.at(-1)
+    ) {
       pending.pop()
-      expression = {
-        kind: 'binary',
-        operator: frame.operator,
-        left: frame.left,
-        right: expression,
-        span: { start: frame.left.span.start, end: expression.span.end },
+      switch (frame.kind) {
+        case 'binary':
+          expression = {
+            kind: 'binary',
+            operator: frame.operator,
+            left: frame.left,
+            right: expression,
+            span: { start: frame.left.span.start, end: expression.span.end },
+          }
+          break
+        case 'group':
+          if (token.kind !== 'rightParen') {
+            throw syntaxError("Expected ')' after expression", token.span)
+          }
+          expression = {
+            ...expression,
+            span: { start: frame.start, end: token.span.end },
+          }
+          continue consumeToken
+        case 'awaitingColon':
+          if (token.kind !== 'colon') {
+            throw syntaxError("Expected ':' after the true branch", token.span)
+          }
+          pending.push({
+            kind: 'awaitingFalseBranch',
+            condition: frame.condition,
+            whenTrue: expression,
+          })
+          expression = undefined
+          continue consumeToken
+        case 'awaitingFalseBranch':
+          expression = {
+            kind: 'conditional',
+            condition: frame.condition,
+            whenTrue: frame.whenTrue,
+            whenFalse: expression,
+            span: {
+              start: frame.condition.span.start,
+              end: expression.span.end,
+            },
+          }
+          break
       }
     }
 
-    if (next.kind === 'eof') {
-      return expression
+    switch (token.kind) {
+      case 'eof':
+        return expression
+      case 'operator':
+        pending.push({
+          kind: 'binary',
+          operator: token.operator,
+          left: expression,
+        })
+        break
+      case 'question':
+        pending.push({ kind: 'awaitingColon', condition: expression })
+        break
+      default:
+        throw syntaxError('Unexpected token after expression', token.span)
     }
-    if (next.kind !== 'operator') {
-      throw syntaxError('Unexpected token after expression', next.span)
-    }
-    pending.push({ kind: 'binary', operator: next.operator, left: expression })
-    next = readToken(source, next.span.end)
+    expression = undefined
+  }
+}
+
+function shouldReduce(frame: PendingExpression, token: Token): boolean {
+  switch (token.kind) {
+    case 'operator':
+      return (
+        frame.kind === 'binary' &&
+        precedence[frame.operator] >= precedence[token.operator]
+      )
+    case 'question':
+      return frame.kind === 'binary'
+    default:
+      return true
   }
 }
 

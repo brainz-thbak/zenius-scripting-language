@@ -4,6 +4,7 @@ import { readToken } from '../src/lexer/index.js'
 import { parseExpression } from '../src/parser/index.js'
 import {
   arithmeticParseRejectCases,
+  conditionalParseRejectCases,
   literalEvaluationCases,
   literalParseRejectCases,
 } from './zsl.cases.js'
@@ -26,6 +27,23 @@ describe('readToken', () => {
     expect(readToken(source, second.span.end)).toEqual({
       kind: 'eof',
       span: { start: 9, end: 9 },
+    })
+  })
+
+  it('reads null coalescing before a single question mark', () => {
+    const source = ' ???:'
+    expect(readToken(source)).toEqual({
+      kind: 'operator',
+      operator: '??',
+      span: { start: 1, end: 3 },
+    })
+    expect(readToken(source, 3)).toEqual({
+      kind: 'question',
+      span: { start: 3, end: 4 },
+    })
+    expect(readToken(source, 4)).toEqual({
+      kind: 'colon',
+      span: { start: 4, end: 5 },
     })
   })
 
@@ -80,6 +98,32 @@ describe('parseExpression', () => {
     })
   })
 
+  it.each([
+    { input: 'true && false && true', operator: '&&' },
+    { input: 'true || false || true', operator: '||' },
+    { input: 'null ?? null ?? 1', operator: '??' },
+  ])(
+    'groups repeated $operator operators from the left',
+    ({ input, operator }) => {
+      expect(parseExpression(input)).toMatchObject({
+        kind: 'binary',
+        operator,
+        left: { kind: 'binary', operator },
+        right: { kind: 'literal' },
+      })
+    },
+  )
+
+  it('keeps branch spans inside a grouped conditional', () => {
+    expect(parseExpression(' (true ? 1 : 2) ')).toEqual({
+      kind: 'conditional',
+      condition: { kind: 'literal', value: true, span: { start: 2, end: 6 } },
+      whenTrue: { kind: 'literal', value: 1, span: { start: 9, end: 10 } },
+      whenFalse: { kind: 'literal', value: 2, span: { start: 13, end: 14 } },
+      span: { start: 1, end: 15 },
+    })
+  })
+
   it('parses 20,000 nested groups and keeps the full source range', () => {
     const depth = 20_000
     const input = `${'('.repeat(depth)}1${')'.repeat(depth)}`
@@ -91,17 +135,18 @@ describe('parseExpression', () => {
     })
   })
 
-  it.each([...literalParseRejectCases, ...arithmeticParseRejectCases])(
-    'rejects $name',
-    ({ input, span }) => {
-      expect(() => parseExpression(input)).toThrow(
-        expect.objectContaining({
-          constructor: ZslValidationError,
-          issues: [expect.objectContaining({ kind: 'syntax', span })],
-        }),
-      )
-    },
-  )
+  it.each([
+    ...literalParseRejectCases,
+    ...arithmeticParseRejectCases,
+    ...conditionalParseRejectCases,
+  ])('rejects $name', ({ input, span }) => {
+    expect(() => parseExpression(input)).toThrow(
+      expect.objectContaining({
+        constructor: ZslValidationError,
+        issues: [expect.objectContaining({ kind: 'syntax', span })],
+      }),
+    )
+  })
 
   it.each(['-4', '1e3', '0x10', 'TRUE', '\u00a04', "'line\nfeed'"])(
     'rejects %j outside the literal grammar',

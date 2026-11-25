@@ -15,28 +15,31 @@ interface LiteralAst {
   readonly span: SourceSpan
 }
 
-interface BinaryAst<Operator extends BinaryOperator, Operand> {
+interface BinaryAst<Operand> {
   readonly kind: 'binary'
-  readonly operator: Operator
+  readonly operator: BinaryOperator
   readonly left: Operand
   readonly right: Operand
   readonly span: SourceSpan
 }
 
+interface ConditionalAst<Operand> {
+  readonly kind: 'conditional'
+  readonly condition: Operand
+  readonly whenTrue: Operand
+  readonly whenFalse: Operand
+  readonly span: SourceSpan
+}
+
 export type ParsedExpressionAst =
   | LiteralAst
-  | BinaryAst<ArithmeticOperator, ParsedExpressionAst>
+  | BinaryAst<ParsedExpressionAst>
+  | ConditionalAst<ParsedExpressionAst>
 
 export type ExpressionAst =
   | LiteralAst
-  | BinaryAst<BinaryOperator, ExpressionAst>
-  | {
-      readonly kind: 'conditional'
-      readonly condition: ExpressionAst
-      readonly whenTrue: ExpressionAst
-      readonly whenFalse: ExpressionAst
-      readonly span: SourceSpan
-    }
+  | BinaryAst<ExpressionAst>
+  | ConditionalAst<ExpressionAst>
   | {
       readonly kind: 'call'
       readonly name: string
