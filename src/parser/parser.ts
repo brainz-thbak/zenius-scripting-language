@@ -4,7 +4,14 @@ import type {
   ExpressionAst,
   SourceSpan,
 } from '../ast/index.js'
-import { syntaxError } from '../exception/index.js'
+import {
+  ZslExpectedArgumentDelimiterError,
+  ZslMissingCallOpeningParenError,
+  ZslMissingConditionalColonError,
+  ZslMissingGroupClosingParenError,
+  ZslMissingOperandError,
+  ZslTrailingTokenError,
+} from '../exception/index.js'
 import { type Token, readToken } from '../lexer/index.js'
 
 const precedence: Readonly<Record<BinaryOperator, number>> = {
@@ -63,7 +70,7 @@ export function parseExpression(
         case 'identifier': {
           const open = readAt(token.span.end)
           if (open.kind !== 'leftParen') {
-            throw syntaxError("Expected '(' after function name", token.span)
+            throw new ZslMissingCallOpeningParenError(token.span)
           }
           pending.push({
             kind: 'call',
@@ -87,7 +94,7 @@ export function parseExpression(
           break
         }
       }
-      throw syntaxError('Expected an operand', token.span)
+      throw new ZslMissingOperandError(token.span)
     }
 
     for (
@@ -108,7 +115,7 @@ export function parseExpression(
           break
         case 'group':
           if (token.kind !== 'rightParen') {
-            throw syntaxError("Expected ')' after expression", token.span)
+            throw new ZslMissingGroupClosingParenError(token.span)
           }
           expression = {
             ...expression,
@@ -123,14 +130,14 @@ export function parseExpression(
             continue consumeToken
           }
           if (token.kind !== 'rightParen') {
-            throw syntaxError("Expected ',' or ')' after argument", token.span)
+            throw new ZslExpectedArgumentDelimiterError(token.span)
           }
           frame.args.push(expression)
           expression = finishCall(frame, token.span.end)
           continue consumeToken
         case 'awaitingColon':
           if (token.kind !== 'colon') {
-            throw syntaxError("Expected ':' after the true branch", token.span)
+            throw new ZslMissingConditionalColonError(token.span)
           }
           pending.push({
             kind: 'awaitingFalseBranch',
@@ -168,7 +175,7 @@ export function parseExpression(
         pending.push({ kind: 'awaitingColon', condition: expression })
         break
       default:
-        throw syntaxError('Unexpected token after expression', token.span)
+        throw new ZslTrailingTokenError(token.span)
     }
     expression = undefined
   }

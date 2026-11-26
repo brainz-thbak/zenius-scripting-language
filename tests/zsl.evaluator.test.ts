@@ -156,9 +156,10 @@ describe('evaluateExpression', () => {
     },
   ])('reports a validation issue for $input', ({ input, span }) => {
     const ast = parseExpression(input)
-    expect(() => evaluateExpression(ast)).toThrow(
+    const evaluate = () => evaluateExpression(ast)
+    expect(evaluate).toThrow(ZslValidationError)
+    expect(evaluate).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [expect.objectContaining({ kind: 'validation', span })],
       }),
     )
@@ -233,13 +234,15 @@ describe('GET', () => {
   })
 
   it('skips accessors without invoking their getters', () => {
+    const getRootAccessor = vi.fn(() => 'root accessor value')
+    const getFieldAccessor = vi.fn(() => 'field accessor value')
     const data = {
       get rootAccessor() {
-        throw new Error('Unexpected root getter access')
+        return getRootAccessor()
       },
       event: {
         get fieldAccessor() {
-          throw new Error('Unexpected field getter access')
+          return getFieldAccessor()
         },
       },
     }
@@ -251,6 +254,8 @@ describe('GET', () => {
     ]) {
       expect(evaluateExpression(parseExpression(input), data)).toBeNull()
     }
+    expect(getRootAccessor).not.toHaveBeenCalled()
+    expect(getFieldAccessor).not.toHaveBeenCalled()
   })
 
   it.each(['context', 'nested value'])(
@@ -290,9 +295,11 @@ describe('GET', () => {
     { input: 'GET(false, 1 / 0)', source: '0' },
   ])('reports a validation issue for $input', ({ input, source }) => {
     const start = input.indexOf(source)
-    expect(() => evaluateExpression(parseExpression(input), context)).toThrow(
+    const ast = parseExpression(input)
+    const evaluate = () => evaluateExpression(ast, context)
+    expect(evaluate).toThrow(ZslValidationError)
+    expect(evaluate).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [
           expect.objectContaining({
             kind: 'validation',
@@ -313,11 +320,11 @@ describe('GET', () => {
     { label: 'Infinity', value: Number.POSITIVE_INFINITY },
   ])('rejects a final $label value', ({ value }) => {
     const input = "GET('event', 'value')"
-    expect(() =>
-      evaluateExpression(parseExpression(input), { event: { value } }),
-    ).toThrow(
+    const ast = parseExpression(input)
+    const evaluate = () => evaluateExpression(ast, { event: { value } })
+    expect(evaluate).toThrow(ZslValidationError)
+    expect(evaluate).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [
           expect.objectContaining({
             kind: 'validation',

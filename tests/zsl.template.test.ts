@@ -1,6 +1,7 @@
+import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
-import { ZSL, ZslValidationError } from '../src/zsl/index.js'
 import { Expression } from '../src/expression/index.js'
+import { ZSL, ZslSyntaxError, ZslValidationError } from '../src/zsl/index.js'
 
 const zsl = new ZSL()
 
@@ -83,9 +84,12 @@ describe('ZSL templates', () => {
       span: { start: 21, end: 27 },
     },
   ])('reports a $kind issue for "$source"', ({ source, kind, span }) => {
-    expect(() => zsl.compile(source)).toThrow(
+    const compile = () => zsl.compile(source)
+    expect(compile).toThrow(
+      kind === 'syntax' ? ZslSyntaxError : ZslValidationError,
+    )
+    expect(compile).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [expect.objectContaining({ kind, span })],
       }),
     )
@@ -103,9 +107,10 @@ describe('ZSL templates', () => {
       span: { start: 0, end: 6 },
     },
   ])('reports $message for "$source"', ({ source, message, span }) => {
-    expect(() => zsl.compile(source)).toThrow(
+    const compile = () => zsl.compile(source)
+    expect(compile).toThrow(ZslSyntaxError)
+    expect(compile).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [{ kind: 'syntax', message, span }],
       }),
     )
@@ -115,9 +120,10 @@ describe('ZSL templates', () => {
     const source = "🌐 ${1}\n${8 / GET('event', 'severity')}"
     const expression = zsl.compile(source)
 
-    expect(() => expression.evaluate({ event: { severity: 0 } })).toThrow(
+    const evaluate = () => expression.evaluate({ event: { severity: 0 } })
+    expect(evaluate).toThrow(ZslValidationError)
+    expect(evaluate).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [
           expect.objectContaining({
             kind: 'validation',
@@ -150,17 +156,17 @@ describe('ZSL templates', () => {
     const expression = zsl.compile(source)
     const expected = zsl.compile(source).getAstSnapshot()
     const [part] = expression.getAstSnapshot()
-    if (part?.kind !== 'expression' || part.expression.kind !== 'conditional') {
-      throw new Error('Expected a conditional expression')
-    }
+    assert(
+      part?.kind === 'expression' && part.expression.kind === 'conditional',
+      'Expected a conditional expression',
+    )
     const branch = part.expression.whenTrue
-    if (branch.kind !== 'binary' || branch.left.kind !== 'call') {
-      throw new Error('Expected a function call inside the true branch')
-    }
+    assert(
+      branch.kind === 'binary' && branch.left.kind === 'call',
+      'Expected a function call inside the true branch',
+    )
     const key = branch.left.args[1]
-    if (key?.kind !== 'literal') {
-      throw new Error('Expected a literal property name')
-    }
+    assert(key?.kind === 'literal', 'Expected a literal property name')
 
     Reflect.set(key, 'value', 'missing')
     Reflect.set(key.span, 'start', 0)

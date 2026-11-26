@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SourceSpan } from '../src/ast/index.js'
-import { ZslValidationError } from '../src/exception/index.js'
+import { ZslSyntaxError } from '../src/exception/index.js'
 import { readToken } from '../src/lexer/index.js'
 import { parseExpression } from '../src/parser/index.js'
 import { literalCases } from './zsl.literal-cases.js'
@@ -292,9 +292,10 @@ describe('parseExpression', () => {
     },
     { name: 'bare Vue identifier', input: 'Vue', span: { start: 0, end: 3 } },
   ])('rejects $name', ({ input, span }) => {
-    expect(() => parseExpression(input)).toThrow(
+    const parse = () => parseExpression(input)
+    expect(parse).toThrow(ZslSyntaxError)
+    expect(parse).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [
           expect.objectContaining(
             span === undefined ? { kind: 'syntax' } : { kind: 'syntax', span },
@@ -307,15 +308,16 @@ describe('parseExpression', () => {
   it.each(['-4', '1e3', '0x10', 'TRUE', '\u00a04', "'line\nfeed'"])(
     'rejects %j outside the literal grammar',
     (input) => {
-      expect(() => parseExpression(input)).toThrow(ZslValidationError)
+      expect(() => parseExpression(input)).toThrow(ZslSyntaxError)
     },
   )
 
   it('rejects a decimal that cannot be represented as a finite number', () => {
     const input = '9'.repeat(309)
-    expect(() => parseExpression(input)).toThrow(
+    const parse = () => parseExpression(input)
+    expect(parse).toThrow(ZslSyntaxError)
+    expect(parse).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [
           expect.objectContaining({
             kind: 'syntax',

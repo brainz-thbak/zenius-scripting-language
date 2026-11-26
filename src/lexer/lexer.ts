@@ -1,5 +1,12 @@
 import type { BinaryOperator, LiteralValue, SourceSpan } from '../ast/index.js'
-import { syntaxError } from '../exception/index.js'
+import {
+  ZslInvalidStringCharacterError,
+  ZslMissingFractionDigitError,
+  ZslNonFiniteNumberLiteralError,
+  ZslUnexpectedCharacterError,
+  ZslUnsupportedEscapeError,
+  ZslUnterminatedStringError,
+} from '../exception/index.js'
 
 export type Token = { readonly span: SourceSpan } & (
   | { readonly kind: 'literal'; readonly value: LiteralValue }
@@ -78,7 +85,7 @@ export function readToken(
   if (/[a-zA-Z_]/.test(character)) {
     return readIdentifier(source, start, limit)
   }
-  throw syntaxError('Unexpected character', {
+  throw new ZslUnexpectedCharacterError({
     start,
     end: characterEnd(source, start, limit),
   })
@@ -103,7 +110,7 @@ function readString(
       const escapedCharacter = source.charAt(index + 1)
       const decoded = stringEscapes.get(escapedCharacter)
       if (decoded === undefined) {
-        throw syntaxError('Unsupported escape sequence', {
+        throw new ZslUnsupportedEscapeError({
           start: index,
           end: characterEnd(source, index + 1, limit),
         })
@@ -112,7 +119,7 @@ function readString(
       index++
     } else {
       if (source.charCodeAt(index) < 0x20) {
-        throw syntaxError('Unexpected control character in string', {
+        throw new ZslInvalidStringCharacterError({
           start: index,
           end: index + 1,
         })
@@ -120,7 +127,7 @@ function readString(
       value += character
     }
   }
-  throw syntaxError('Unterminated string', { start, end: limit })
+  throw new ZslUnterminatedStringError({ start, end: limit })
 }
 
 function readNumber(source: string, start: number, limit: number): Token {
@@ -129,7 +136,7 @@ function readNumber(source: string, start: number, limit: number): Token {
     const fractionStart = end + 1
     const fractionEnd = digitEnd(source, fractionStart, limit)
     if (fractionStart === fractionEnd) {
-      throw syntaxError('Expected a digit after the decimal point', {
+      throw new ZslMissingFractionDigitError({
         start: end,
         end: fractionStart,
       })
@@ -138,7 +145,7 @@ function readNumber(source: string, start: number, limit: number): Token {
   }
   const value = Number(source.slice(start, end))
   if (!Number.isFinite(value)) {
-    throw syntaxError('Number must be finite', { start, end })
+    throw new ZslNonFiniteNumberLiteralError({ start, end })
   }
   return literalToken(value, start, end)
 }

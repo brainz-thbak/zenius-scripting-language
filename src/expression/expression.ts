@@ -1,5 +1,6 @@
 import type { ExpressionAst, TemplateAst, TemplatePart } from '../ast/index.js'
 import { evaluateExpression } from '../evaluator/index.js'
+import { ZslUnsupportedExpressionNodeError } from '../exception/index.js'
 import type { ExpressionContract, ZslContext } from './types.js'
 
 export class Expression implements ExpressionContract {
@@ -66,7 +67,7 @@ function copyTemplateAst(ast: TemplateAst): TemplateAst {
         break
       default: {
         const _unhandled: never = node
-        throw new TypeError('Unsupported expression node')
+        throw new ZslUnsupportedExpressionNodeError()
       }
     }
   }

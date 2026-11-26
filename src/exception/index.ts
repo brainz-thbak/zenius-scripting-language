@@ -1,6 +1,31 @@
-export type { ZslIssue } from './types.js'
 export {
+  ZslExpectedArgumentDelimiterError,
+  ZslInvalidStringCharacterError,
+  ZslMissingCallOpeningParenError,
+  ZslMissingConditionalColonError,
+  ZslMissingFractionDigitError,
+  ZslMissingGroupClosingParenError,
+  ZslMissingOperandError,
+  ZslNonFiniteNumberLiteralError,
+  ZslSyntaxError,
+  ZslTrailingTokenError,
+  ZslUnexpectedCharacterError,
+  ZslUnsupportedEscapeError,
+  ZslUnterminatedStringError,
+  ZslUnterminatedTemplateExpressionError,
+} from './syntax-error.js'
+export type { ZslIssue } from './types.js'
+export { ZslUnsupportedExpressionNodeError } from './unsupported-expression-node-error.js'
+export {
+  ZslDivisionByZeroError,
+  ZslInsufficientArgumentsError,
+  ZslInvalidArgumentTypeError,
+  ZslInvalidArithmeticOperandTypeError,
+  ZslInvalidConditionTypeError,
+  ZslInvalidFunctionResultError,
+  ZslInvalidLogicalOperandTypeError,
+  ZslNonFiniteArithmeticResultError,
+  ZslUnknownFunctionError,
   ZslValidationError,
-  syntaxError,
-  validationError,
 } from './validation-error.js'
+export { ZslError } from './zsl-error.js'

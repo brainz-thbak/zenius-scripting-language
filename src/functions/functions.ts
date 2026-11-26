@@ -1,5 +1,10 @@
 import type { CallAst, LiteralValue, SourceSpan } from '../ast/index.js'
-import { validationError } from '../exception/index.js'
+import {
+  ZslInsufficientArgumentsError,
+  ZslInvalidArgumentTypeError,
+  ZslInvalidFunctionResultError,
+  ZslUnknownFunctionError,
+} from '../exception/index.js'
 import type { ZslContext } from '../expression/index.js'
 
 export interface EvaluatedArgument {
@@ -21,11 +26,15 @@ const functions: ReadonlyMap<
 export function resolveCall(call: CallAst): EvaluateFunction {
   const fn = functions.get(call.name)
   if (fn === undefined) {
-    throw validationError(`Unknown function '${call.name}'`, call.span)
+    throw new ZslUnknownFunctionError(call.name, call.span)
   }
   if (call.args.length < fn.minimumArguments) {
-    throw validationError(
-      `'${call.name}' requires at least ${fn.minimumArguments} arguments`,
+    throw new ZslInsufficientArgumentsError(
+      {
+        functionName: call.name,
+        minimumArguments: fn.minimumArguments,
+        actualArguments: call.args.length,
+      },
       call.span,
     )
   }
@@ -40,7 +49,10 @@ function get(
   let value: unknown = context
   for (const arg of args) {
     if (typeof arg.value !== 'string') {
-      throw validationError('GET arguments must be strings', arg.span)
+      throw new ZslInvalidArgumentTypeError(
+        { functionName: 'GET', expectedType: 'string' },
+        arg.span,
+      )
     }
     if (value === null || typeof value !== 'object') {
       value = undefined
@@ -62,8 +74,5 @@ function get(
   ) {
     return value
   }
-  throw validationError(
-    'GET result must be a string, a boolean, null, or a finite number',
-    span,
-  )
+  throw new ZslInvalidFunctionResultError('GET', span)
 }

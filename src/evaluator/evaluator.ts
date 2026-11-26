@@ -5,7 +5,13 @@ import type {
   LiteralValue,
   SourceSpan,
 } from '../ast/index.js'
-import { validationError } from '../exception/index.js'
+import {
+  ZslDivisionByZeroError,
+  ZslInvalidArithmeticOperandTypeError,
+  ZslInvalidConditionTypeError,
+  ZslInvalidLogicalOperandTypeError,
+  ZslNonFiniteArithmeticResultError,
+} from '../exception/index.js'
 import type { ZslContext } from '../expression/index.js'
 import {
   type EvaluateFunction,
@@ -59,10 +65,7 @@ export function evaluateExpression(
       case 'condition': {
         const { condition, whenTrue, whenFalse } = frame.node
         if (typeof value !== 'boolean') {
-          throw validationError(
-            'Conditional condition must be a boolean',
-            condition.span,
-          )
+          throw new ZslInvalidConditionTypeError(condition.span)
         }
         value = descendToValue(value ? whenTrue : whenFalse, pending, context)
         break
@@ -100,11 +103,11 @@ export function evaluateExpression(
       case 'arithmeticRight': {
         const right = requireNumber(value, frame.rightSpan)
         if (frame.operator === '/' && right === 0) {
-          throw validationError('Division by zero', frame.rightSpan)
+          throw new ZslDivisionByZeroError(frame.rightSpan)
         }
         const result = arithmeticOperations[frame.operator](frame.left, right)
         if (!Number.isFinite(result)) {
-          throw validationError('Arithmetic result must be finite', frame.span)
+          throw new ZslNonFiniteArithmeticResultError(frame.span)
         }
         value = result
         break
@@ -168,14 +171,14 @@ function descendToValue(
 
 function requireNumber(value: LiteralValue, span: SourceSpan): number {
   if (typeof value !== 'number') {
-    throw validationError('Arithmetic operands must be numbers', span)
+    throw new ZslInvalidArithmeticOperandTypeError(span)
   }
   return value
 }
 
 function requireBoolean(value: LiteralValue, span: SourceSpan): boolean {
   if (typeof value !== 'boolean') {
-    throw validationError('Logical operands must be booleans', span)
+    throw new ZslInvalidLogicalOperandTypeError(span)
   }
   return value
 }

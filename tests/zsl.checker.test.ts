@@ -17,9 +17,10 @@ describe('checkExpression', () => {
     { name: 'GET with one argument', input: "GET('event')" },
   ])('rejects $name after parsing', ({ input }) => {
     const ast = parseExpression(input)
-    expect(() => checkExpression(ast)).toThrow(
+    const check = () => checkExpression(ast)
+    expect(check).toThrow(ZslValidationError)
+    expect(check).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [
           expect.objectContaining({
             kind: 'validation',
@@ -45,9 +46,10 @@ describe('checkExpression', () => {
   ])('checks calls in source order in $input', ({ input, first }) => {
     const ast = parseExpression(input)
     const start = input.indexOf(first)
-    expect(() => checkExpression(ast)).toThrow(
+    const check = () => checkExpression(ast)
+    expect(check).toThrow(ZslValidationError)
+    expect(check).toThrow(
       expect.objectContaining({
-        constructor: ZslValidationError,
         issues: [
           expect.objectContaining({
             kind: 'validation',

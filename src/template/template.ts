@@ -1,6 +1,6 @@
 import type { TemplateAst, TemplatePart } from '../ast/index.js'
 import { checkExpression } from '../checker/index.js'
-import { syntaxError } from '../exception/index.js'
+import { ZslUnterminatedTemplateExpressionError } from '../exception/index.js'
 import { parseExpression } from '../parser/index.js'
 
 export function compileTemplate(source: string): TemplateAst {
@@ -17,7 +17,7 @@ export function compileTemplate(source: string): TemplateAst {
     const start = opener + 2
     const end = findExpressionEnd(source, start)
     if (end === source.length) {
-      throw syntaxError('Unterminated template expression', {
+      throw new ZslUnterminatedTemplateExpressionError({
         start: opener,
         end,
       })
