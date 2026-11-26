@@ -1,9 +1,14 @@
 (* ZSL 템플릿과 표현식 문법 *)
 
 template input = [ text segment ], { interpolation, [ text segment ] }, ? end of input ? ;
-text segment = text character, { text character } ;
-text character = ? any UTF-16 code unit except the dollar sign at the start of an interpolation opener ? ;
-interpolation = "${", spacing, expression, spacing, "}" ;
+text segment = text element, { text element } ;
+text element = escaped interpolation opener | backslash pair before opener | text character ;
+(* 이스케이프된 여는 구분자는 ${를 출력하고, 역슬래시 쌍은 역슬래시 한 개를 출력한다. *)
+escaped interpolation opener = '\', interpolation opener ;
+backslash pair before opener = '\', '\', ? look ahead without consuming for zero or more backslashes followed by an interpolation opener ? ;
+text character = ? any UTF-16 code unit except at the start of an interpolation opener, an escaped interpolation opener, or a backslash pair before opener ? ;
+interpolation = interpolation opener, spacing, expression, spacing, "}" ;
+interpolation opener = "${" ;
 
 expression input = spacing, expression, spacing, ? end of input ? ;
 expression = conditional ;

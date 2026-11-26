@@ -6,15 +6,34 @@ import { parseExpression } from '../parser/index.js'
 export function compileTemplate(source: string): TemplateAst {
   const parts: TemplatePart[] = []
   let textStart = 0
+  let text = ''
   for (
     let opener = source.indexOf('${');
     opener !== -1;
     opener = source.indexOf('${', textStart)
   ) {
-    if (opener > textStart) {
-      parts.push({ kind: 'text', value: source.slice(textStart, opener) })
+    let backslashStart = opener
+    while (
+      backslashStart > textStart &&
+      source.charAt(backslashStart - 1) === '\\'
+    ) {
+      backslashStart--
     }
+    const backslashCount = opener - backslashStart
+    text += source.slice(textStart, backslashStart)
+    text += '\\'.repeat(Math.floor(backslashCount / 2))
+
     const start = opener + 2
+    if (backslashCount % 2 !== 0) {
+      text += '${'
+      textStart = start
+      continue
+    }
+    if (text.length > 0) {
+      parts.push({ kind: 'text', value: text })
+      text = ''
+    }
+
     const end = findExpressionEnd(source, start)
     if (end === source.length) {
       throw new ZslUnterminatedTemplateExpressionError({
@@ -27,8 +46,9 @@ export function compileTemplate(source: string): TemplateAst {
     parts.push({ kind: 'expression', expression })
     textStart = end + 1
   }
-  if (textStart < source.length) {
-    parts.push({ kind: 'text', value: source.slice(textStart) })
+  text += source.slice(textStart)
+  if (text.length > 0) {
+    parts.push({ kind: 'text', value: text })
   }
   return parts
 }

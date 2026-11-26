@@ -129,6 +129,16 @@ describe('ZSL compile input and length limits', () => {
     )
   })
 
+  it('checks input and output limits on each side of opener decoding', () => {
+    const source = '\\${42}'
+    const compiler = new ZSL({ maxInputLength: 6, maxOutputLength: 5 })
+
+    expect(compiler.compile(source).evaluate()).toBe('${42}')
+    expect(() => new ZSL({ maxInputLength: 5 }).compile(source)).toThrow(
+      expect.objectContaining({ code: 'INPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+  })
+
   it('checks the combined output length in UTF-16 code units on each evaluation', () => {
     const expression = new ZSL({ maxOutputLength: 3 }).compile(
       "😀${GET('event', 'value')}",
@@ -224,7 +234,7 @@ describe('ZSL templates', () => {
     { source: "${'it\\'}s'}", expected: "it'}s" },
     { source: '${"a\\"}b"}', expected: 'a"}b' },
     { source: "${'\\\\'}tail", expected: '\\tail' },
-    { source: "\\${'${value}'}", expected: '\\${value}' },
+    { source: "\\\\${'${value}'}", expected: '\\${value}' },
     { source: ' \r\n${\r\n\t4 + 6\n}\r\t ', expected: ' \r\n10\r\t ' },
   ])('evaluates "$source"', ({ source, expected }) => {
     const expression = zsl.compile(source)
@@ -232,10 +242,33 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe(expected)
   })
 
-  it('renders an escaped template opener as literal text', () => {
-    const expression = zsl.compile('예시: \\${42}')
+  it.each([
+    { source: '예시: \\${42}', expected: '예시: ${42}' },
+    { source: '예시: \\\\${42}', expected: '예시: \\42' },
+    { source: '\\${42} → ${1 + 2}', expected: '${42} → 3' },
+    { source: '\\${42', expected: '${42' },
+    { source: '\\\\\\${42}', expected: '\\${42}' },
+    { source: '\\\\\\\\${42}', expected: '\\\\42' },
+    { source: '\\${${42}}', expected: '${42}' },
+    { source: 'a\\\\b\\${42}\\\\c${3}d\\', expected: 'a\\\\b${42}\\\\c3d\\' },
+  ])(
+    'evaluates template opener escapes in "$source"',
+    ({ source, expected }) => {
+      expect(zsl.compile(source).evaluate()).toBe(expected)
+    },
+  )
 
-    expect(expression.evaluate()).toBe('예시: ${42}')
+  it('collects decoded text in AST snapshots and preserves expression spans', () => {
+    const expression = zsl.compile('\\${1}\\${2}${3}\\${')
+
+    expect(expression.getAstSnapshot()).toEqual([
+      { kind: 'text', value: '${1}${2}' },
+      {
+        kind: 'expression',
+        expression: { kind: 'literal', value: 3, span: { start: 12, end: 13 } },
+      },
+      { kind: 'text', value: '${' },
+    ])
   })
 
   it('preserves the difference between adjacent large numeric literals', () => {
@@ -312,6 +345,11 @@ describe('ZSL templates', () => {
       span: { start: 14, end: 16 },
     },
     {
+      source: '🌐 \\${42}\n${4 + 😀}',
+      kind: 'syntax',
+      span: { start: 16, end: 18 },
+    },
+    {
       source: '🌐 ${1}\n${4 + }',
       kind: 'syntax',
       span: { start: 14, end: 14 },
@@ -329,6 +367,18 @@ describe('ZSL templates', () => {
     expect(compile).toThrow(
       expect.objectContaining({
         issues: [expect.objectContaining({ kind, span })],
+      }),
+    )
+  })
+
+  it.each([
+    { source: '${42', span: { start: 0, end: 4 } },
+    { source: '🌐 \\${42} ${42', span: { start: 10, end: 14 } },
+  ])('reports the unterminated opener in "$source"', ({ source, span }) => {
+    expect(() => zsl.compile(source)).toThrow(
+      expect.objectContaining({
+        code: 'UNTERMINATED_TEMPLATE_EXPRESSION',
+        issues: [expect.objectContaining({ span })],
       }),
     )
   })

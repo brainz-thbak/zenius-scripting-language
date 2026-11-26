@@ -25,7 +25,7 @@ ZSL의 실행 대상은 웹 브라우저와 Node.js다. 두 환경에 같은 공
 
 ## 평가
 
-`evaluate(context?)`는 텍스트를 보존하고 각 표현식의 결과를 문자열로 바꿔 원문 순서대로 이어 붙인다. 같은 `Expression`을 여러 컨텍스트로 평가할 수 있다. 컨텍스트의 키는 `GET`이 조회할 객체 이름이다. 표현식에서 참조할 데이터가 없으면 컨텍스트를 생략할 수 있다. 표현식의 평가 규칙을 충족하지 못하면 템플릿 원문 기준 소스 범위를 담은 `ZslValidationError`를 던진다. [Expression 클래스](../src/expression/expression.ts) · [평가 인터페이스](../src/expression/types.ts) · [언어 명세](language.md)
+`evaluate(context?)`는 컴파일할 때 이스케이프를 처리한 텍스트와 각 표현식의 문자열 결과를 원문 순서대로 이어 붙인다. 같은 `Expression`을 여러 컨텍스트로 평가할 수 있다. 컨텍스트의 키는 `GET`이 조회할 객체 이름이다. 표현식에서 참조할 데이터가 없으면 컨텍스트를 생략할 수 있다. 표현식의 평가 규칙을 충족하지 못하면 템플릿 원문 기준 소스 범위를 담은 `ZslValidationError`를 던진다. [Expression 클래스](../src/expression/expression.ts) · [평가 인터페이스](../src/expression/types.ts) · [언어 명세](language.md)
 
 `Expression`은 컴파일한 `ZSL` 인스턴스의 `maxOutputLength`를 사용한다. 다음 텍스트나 표현식 결과를 이어 붙이면 누적 길이가 한도를 초과하는 경우 `OUTPUT_LENGTH_LIMIT_EXCEEDED`를 던지고 평가를 중단한다.
 
@@ -45,7 +45,7 @@ zsl.compile('${4 + 6}').evaluate() // '10'
 
 ## AST 조회
 
-`getAstSnapshot()`은 호출할 때마다 템플릿 AST의 새 복사본을 반환한다. 복사본에는 텍스트 구간, 표현식 노드, 소스 범위가 포함된다. 복사본의 변경은 원래 `Expression`의 평가나 다음 스냅샷에 영향을 주지 않는다. [Expression 클래스](../src/expression/expression.ts)
+`getAstSnapshot()`은 호출할 때마다 템플릿 AST의 새 복사본을 반환한다. 복사본에는 이스케이프를 처리한 텍스트 구간과 원문 소스 범위를 가진 표현식 노드가 포함된다. 복사본의 변경은 원래 `Expression`의 평가나 다음 스냅샷에 영향을 주지 않는다. [Expression 클래스](../src/expression/expression.ts)
 
 ```ts
 const snapshot = zsl.compile('값: ${42}').getAstSnapshot()
