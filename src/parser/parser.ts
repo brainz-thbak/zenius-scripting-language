@@ -4,7 +4,7 @@ import type {
   ExpressionAst,
   SourceSpan,
 } from '../ast/index.js'
-import { ZslValidationError } from '../exception/index.js'
+import { syntaxError } from '../exception/index.js'
 import { type Token, readToken } from '../lexer/index.js'
 
 const precedence: Readonly<Record<BinaryOperator, number>> = {
@@ -42,14 +42,18 @@ type PendingExpression =
       readonly whenTrue: ExpressionAst
     }
 
-export function parseExpression(source: string): ExpressionAst {
+export function parseExpression(
+  source: string,
+  { start, end }: SourceSpan = { start: 0, end: source.length },
+): ExpressionAst {
   const pending: PendingExpression[] = []
+  const readAt = (offset: number) => readToken(source, offset, end)
   let expression: ExpressionAst | undefined
 
   consumeToken: for (
-    let token = readToken(source);
+    let token = readAt(start);
     ;
-    token = readToken(source, token.span.end)
+    token = readAt(token.span.end)
   ) {
     if (expression === undefined) {
       switch (token.kind) {
@@ -57,7 +61,7 @@ export function parseExpression(source: string): ExpressionAst {
           pending.push({ kind: 'group', start: token.span.start })
           continue
         case 'identifier': {
-          const open = readToken(source, token.span.end)
+          const open = readAt(token.span.end)
           if (open.kind !== 'leftParen') {
             throw syntaxError("Expected '(' after function name", token.span)
           }
@@ -191,8 +195,4 @@ function shouldReduce(frame: PendingExpression, token: Token): boolean {
     default:
       return true
   }
-}
-
-function syntaxError(message: string, span: SourceSpan): ZslValidationError {
-  return new ZslValidationError([{ kind: 'syntax', message, span }])
 }

@@ -9,6 +9,13 @@ export class ZslValidationError extends Error {
   }
 }
 
+export function syntaxError(
+  message: string,
+  span: SourceSpan,
+): ZslValidationError {
+  return new ZslValidationError([{ kind: 'syntax', message, span }])
+}
+
 export function validationError(
   message: string,
   span: SourceSpan,

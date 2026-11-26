@@ -1,7 +1,8 @@
-import type { Expression } from '../expression/index.js'
+import { Expression } from '../expression/index.js'
+import { compileTemplate } from '../template/template.js'
 
 export class ZSL {
-  compile(_source: string): Expression {
-    throw new Error('ZSL.compile() is not implemented')
+  compile(source: string): Expression {
+    return new Expression(compileTemplate(source))
   }
 }

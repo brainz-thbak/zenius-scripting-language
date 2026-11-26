@@ -1,4 +1,9 @@
-(* ZSL 표현식 문법 *)
+(* ZSL 템플릿과 표현식 문법 *)
+
+template input = [ text segment ], { interpolation, [ text segment ] }, ? end of input ? ;
+text segment = text character, { text character } ;
+text character = ? any UTF-16 code unit except the dollar sign at the start of an interpolation opener ? ;
+interpolation = "${", spacing, expression, spacing, "}" ;
 
 expression input = spacing, expression, spacing, ? end of input ? ;
 expression = conditional ;

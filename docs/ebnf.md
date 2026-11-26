@@ -1,6 +1,6 @@
 # ZSL의 EBNF 읽는 법
 
-EBNF는 어떤 문자열이 문법에 맞는지 규칙으로 적는 표기법이다. ZSL의 표현식 문법을 읽을 때는 `expression input`부터 시작하고, 오른쪽에 나온 규칙 이름을 따라간다. `expression input`처럼 공백이 들어간 이름도 규칙 하나를 가리킨다. [ZSL 표현식 문법](../spec/zsl.ebnf)
+EBNF는 어떤 문자열이 문법에 맞는지 규칙으로 적는 표기법이다. ZSL 문법은 템플릿을 `template input`에서, 단독 표현식을 `expression input`에서 읽기 시작한다. 오른쪽에 나온 규칙 이름을 따라가면 각 구성을 확인할 수 있다. `expression input`처럼 공백이 들어간 이름도 규칙 하나를 가리킨다. [ZSL 문법](../spec/zsl.ebnf)
 
 ## 기호 읽기
 
