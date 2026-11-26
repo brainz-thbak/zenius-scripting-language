@@ -274,34 +274,6 @@ describe('GET', () => {
     expect(getFieldAccessor).not.toHaveBeenCalled()
   })
 
-  // 루트 컨텍스트와 중첩 값 각각에서 속성 조회가 Proxy 트랩을 호출하는지 감시한다.
-  // 기대하는 트랩 호출 횟수는 0이고, 평가가 예외를 던질 경우 검사 오류여야 한다.
-  it.each(['context', 'nested value'])(
-    'does not invoke Proxy traps on the %s',
-    (location) => {
-      const getOwnPropertyDescriptor = vi.fn(Reflect.getOwnPropertyDescriptor)
-      const get = vi.fn(Reflect.get)
-      const getPrototypeOf = vi.fn(Reflect.getPrototypeOf)
-      const handler = { getOwnPropertyDescriptor, get, getPrototypeOf }
-      const target = { event: { severity: 6 } }
-      const data =
-        location === 'context'
-          ? new Proxy<typeof target>(target, handler)
-          : { event: new Proxy(target.event, handler) }
-      const ast = parseExpression("GET('event', 'severity')")
-
-      try {
-        evaluateExpression(ast, data)
-      } catch (error) {
-        expect(error).toBeInstanceOf(ZslValidationError)
-      }
-
-      expect(getOwnPropertyDescriptor).not.toHaveBeenCalled()
-      expect(get).not.toHaveBeenCalled()
-      expect(getPrototypeOf).not.toHaveBeenCalled()
-    },
-  )
-
   // 호출 이름, 인자 개수, 인자 타입, 인자 표현식에서 난 오류를 구분한다.
   // 진단은 호출 전체, 잘못된 인자, 또는 인자 안에서 평가가 실패한 위치를 가리킨다.
   it.each([

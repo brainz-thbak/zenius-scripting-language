@@ -2,6 +2,13 @@
 
 패키지 `@zenius/zsl`은 `ZSL`과 오류 클래스를 내보낸다. `Expression`, `ZslIssue`, `ZslOptions`는 타입으로 가져올 수 있다. [패키지 진입점](../src/zsl/index.ts)
 
+## 실행 환경
+
+ZSL의 실행 대상은 웹 브라우저와 Node.js다. 두 환경에 같은 공개 API와 표현식 평가 규칙을 적용한다.
+
+- 웹 브라우저에서는 ESM 진입점을 사용한다.
+- Node.js 24 이상에서는 ESM과 CommonJS 진입점을 제공한다. [패키지 설정](../package.json)
+
 ## 인스턴스 설정
 
 `new ZSL(options?)`는 템플릿 원문의 `maxInputLength`와 평가 결과의 `maxOutputLength`를 받는다. 각 한도는 UTF-16 코드 단위로 센 길이의 최댓값이다. 문자열의 `length`와 같은 단위다. 인스턴스는 생성할 때 두 한도를 저장한다. 두 한도는 같은 이름의 공개 `readonly` 속성에서 읽을 수 있다.
