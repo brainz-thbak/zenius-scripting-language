@@ -6,6 +6,8 @@ import { ZSL, ZslSyntaxError, ZslValidationError } from '../src/zsl/index.js'
 const zsl = new ZSL()
 
 describe('ZSL templates', () => {
+  // 일반 텍스트와 공백은 보존하고 표현식 구간의 결과를 원래 순서대로 끼워 넣는다.
+  // 따옴표와 이스케이프가 있는 문자열 안의 중괄호도 구간 끝과 구별한다.
   it.each([
     { source: '', expected: '' },
     { source: '4 + 6', expected: '4 + 6' },
@@ -28,6 +30,8 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe(expected)
   })
 
+  // 한 번 컴파일한 템플릿을 여러 이벤트에 재사용한다.
+  // 평가할 때마다 전달한 이벤트 값을 읽으며, 컨텍스트가 없을 때는 null을 문자열로 표시한다.
   it('evaluates the same template with each supplied context', () => {
     const expression = zsl.compile(
       "${GET('event', 'name')}의 위험도는 ${GET('event', 'severity')}입니다.",
@@ -42,6 +46,8 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe('null의 위험도는 null입니다.')
   })
 
+  // 선택되지 않는 분기와 단락되는 오른쪽 항에 0으로 나누는 식을 둔다.
+  // 각 구간은 필요한 값만 평가하고 그 결과를 차례로 출력한다.
   it('evaluates only the selected branch and required operands in each segment', () => {
     const expression = zsl.compile(
       '${true ? 4 : 1 / 0} ${false && (1 / 0)} ${true || (1 / 0)} ${5 ?? (1 / 0)}',
@@ -50,6 +56,8 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe('4 false true 5')
   })
 
+  // 구간을 읽거나 표현식을 파싱할 때의 문법 오류와 함수 검사 오류를 구분한다.
+  // 일반 텍스트, 앞 구간, 이모지, 줄바꿈을 포함한 템플릿 전체에서 진단 위치를 잰다.
   it.each([
     { source: '결과: ${4 + 6', kind: 'syntax', span: { start: 4, end: 11 } },
     { source: '${event.name}', kind: 'syntax', span: { start: 7, end: 8 } },
@@ -95,6 +103,8 @@ describe('ZSL templates', () => {
     )
   })
 
+  // 닫힌 구간을 파싱할 때는 지원하지 않는 이스케이프 위치를 보고한다.
+  // 구간 자체가 닫히지 않으면 구간 탐색 오류를 먼저 보고한다.
   it.each([
     {
       source: '${"\\q"}',
@@ -116,6 +126,8 @@ describe('ZSL templates', () => {
     )
   })
 
+  // 컨텍스트가 0을 제공하면 제수에 해당하는 표현식 범위를 템플릿 전체 기준으로 보고한다.
+  // 같은 컴파일 결과를 유효한 컨텍스트로 다시 평가하면 정상 출력이 나온다.
   it('reports an absolute runtime issue and can still evaluate with another context', () => {
     const source = "🌐 ${1}\n${8 / GET('event', 'severity')}"
     const expression = zsl.compile(source)
@@ -135,6 +147,8 @@ describe('ZSL templates', () => {
     expect(expression.evaluate({ event: { severity: 2 } })).toBe('🌐 1\n4')
   })
 
+  // 텍스트 구간과 리터럴 표현식으로 템플릿 AST를 직접 구성한다.
+  // 생성자가 받은 순서대로 평가하고 표현식 결과를 문자열로 붙인다.
   it('evaluates a template AST supplied to the Expression constructor', () => {
     const expression = new Expression([
       { kind: 'text', value: 'value=' },
@@ -151,6 +165,8 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe('value=true')
   })
 
+  // AST 스냅샷에서 중첩 호출의 인자 값과 그 소스 범위를 수정한다.
+  // 원본의 평가 결과와 다시 얻은 스냅샷에는 원래 값과 범위가 유지된다.
   it('isolates nested snapshot nodes and source ranges from evaluation', () => {
     const source = "${true ? GET('event', 'severity') + 1 : 0}"
     const expression = zsl.compile(source)
@@ -175,6 +191,8 @@ describe('ZSL templates', () => {
     expect(expression.getAstSnapshot()).toEqual(expected)
   })
 
+  // 생성자에 전달했던 배열과 그 안의 텍스트를 스냅샷을 얻은 뒤 수정한다.
+  // 앞서 얻은 스냅샷에는 캡처 시점의 배열 구조와 텍스트가 남는다.
   it('lets the caller change its input after taking a snapshot', () => {
     const part = { kind: 'text' as const, value: 'original' }
     const parts = [part]
@@ -187,6 +205,8 @@ describe('ZSL templates', () => {
     expect(snapshot).toEqual([{ kind: 'text', value: 'original' }])
   })
 
+  // 왼쪽으로 깊은 덧셈 AST의 스냅샷을 새 Expression에 전달한다.
+  // 복사한 AST도 20,000개 연산을 모두 포함하며 평가 결과는 원문의 합과 같다.
   it('copies deeply nested expressions at the supported evaluation depth', () => {
     const additions = 20_000
     const source = `\${${'1+'.repeat(additions)}1}`

@@ -36,6 +36,8 @@ import {
 const zsl = new ZSL()
 
 describe('ZSL errors', () => {
+  // 공개 오류 분류를 생성해 Error 상속 관계와 분류별 이름, 코드, 진단을 확인한다.
+  // 타입 검사에서도 진단 kind와 구체 오류의 code가 각각 좁은 타입으로 유지돼야 한다.
   it('exports constructible categories with narrowed diagnostic kinds', () => {
     const span = { start: 2, end: 3 }
     const syntaxIssue: ZslIssue<'syntax'> = {
@@ -81,6 +83,8 @@ describe('ZSL errors', () => {
     >().toEqualTypeOf<'DIVISION_BY_ZERO'>()
   })
 
+  // 어휘와 표현식 문법에서 거부하는 입력을 구체 오류별로 검사한다.
+  // 공통 오류 메시지와 세부 진단을 구분하고, 문제가 있는 원문 범위를 확인한다.
   it.each([
     {
       input: '1 + 😀',
@@ -183,6 +187,8 @@ describe('ZSL errors', () => {
     )
   })
 
+  // 템플릿에서 표현식 구간의 닫는 구분자가 빠지면 컴파일이 구간 탐색 단계에서 실패한다.
+  // 이 오류의 진단 범위는 여는 구분자부터 템플릿 끝까지다.
   it('reports UNTERMINATED_TEMPLATE_EXPRESSION while scanning the template', () => {
     assert.throws(
       () => zsl.compile('prefix ${1'),
@@ -206,6 +212,8 @@ describe('ZSL errors', () => {
     )
   })
 
+  // 컴파일러는 미등록 함수와 인자 수가 부족한 함수를 서로 다른 검사 오류로 보고한다.
+  // 함수 이름과 인자 수 정보, 템플릿 원문에서 호출이 차지하는 범위를 함께 확인한다.
   it.each([
     {
       input: 'missing()',
@@ -248,6 +256,8 @@ describe('ZSL errors', () => {
     },
   )
 
+  // 컴파일을 통과한 표현식에서 값의 타입이나 연산 결과가 평가 규칙을 위반하는 경우다.
+  // 실패 원인별 오류 코드, 추가 정보, 템플릿 원문 기준 진단 범위를 확인한다.
   it.each([
     {
       input: "GET('event', false)",
@@ -323,6 +333,8 @@ describe('ZSL errors', () => {
     },
   )
 
+  // 스냅샷을 뜨는 도중 지원하지 않는 AST 노드를 만나면 전용 오류를 보고한다.
+  // 이 오류는 AST의 상태를 나타내며 소스 진단 배열은 비어 있다.
   it('reports UNSUPPORTED_EXPRESSION_NODE without a source diagnostic', () => {
     const node = parseExpression('true')
     Reflect.set(node, 'kind', 'unsupported')

@@ -4,6 +4,8 @@ import { ZslValidationError } from '../src/exception/index.js'
 import { parseExpression } from '../src/parser/index.js'
 
 describe('checkExpression', () => {
+  // 호출 구문은 파싱한 뒤 함수 이름과 최소 인자 수를 검사한다.
+  // 허용 목록 밖의 이름과 인자가 부족한 호출은 호출 전체를 검사 오류로 표시한다.
   it.each([
     { name: 'unknown function', input: 'unknown()' },
     { name: 'wrong case', input: "get('event', 'severity')" },
@@ -31,6 +33,8 @@ describe('checkExpression', () => {
     )
   })
 
+  // 검사기는 단락 평가나 삼항 분기가 건너뛸 호출도 확인한다.
+  // 여러 오류가 있으면 원문에서 먼저 시작하는 호출의 범위를 보고한다.
   it.each([
     { input: 'true || missing()', first: 'missing()' },
     { input: 'false && missing()', first: 'missing()' },
@@ -60,6 +64,8 @@ describe('checkExpression', () => {
     )
   })
 
+  // 안쪽 호출이 바깥 호출의 인자인 구조를 20,000단계 중첩한다.
+  // 함수 이름과 인자 수가 유효하면 이 깊이에서도 검사를 마칠 수 있어야 한다.
   it('checks 20,000 nested GET calls', () => {
     const depth = 20_000
     const input = `${"GET('event', ".repeat(depth)}'key'${')'.repeat(depth)}`
