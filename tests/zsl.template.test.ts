@@ -35,6 +35,19 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe(expected)
   })
 
+  it('preserves the difference between adjacent large numeric literals', () => {
+    const expression = zsl.compile('${9007199254740992},${9007199254740993}')
+
+    expect(expression.evaluate()).toBe('9007199254740992,9007199254740993')
+  })
+
+  it('round-trips a small decimal evaluation result as a numeric literal', () => {
+    const result = zsl.compile('${0.0000001}').evaluate()
+    const source = `\${${result}}`
+
+    expect(zsl.compile(source).evaluate()).toBe(result)
+  })
+
   // 한 번 컴파일한 템플릿을 여러 이벤트에 재사용한다.
   // 평가할 때마다 전달한 이벤트 값을 읽으며, 컨텍스트가 없을 때는 null을 문자열로 표시한다.
   it('evaluates the same template with each supplied context', () => {
