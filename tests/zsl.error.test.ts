@@ -333,6 +333,26 @@ describe('ZSL errors', () => {
     },
   )
 
+  it('preserves the source range after a caller edits a previous diagnostic', () => {
+    const expression = zsl.compile('${12 / 0}')
+    const evaluate = () => expression.evaluate()
+
+    assert.throws(evaluate, (error: unknown) => {
+      assert(error instanceof ZslDivisionByZeroError)
+      const [issue] = error.issues
+      assert(issue)
+      expect(issue.span).toEqual({ start: 7, end: 8 })
+      Reflect.set(issue.span, 'start', 0)
+      return true
+    })
+
+    assert.throws(evaluate, (error: unknown) => {
+      assert(error instanceof ZslDivisionByZeroError)
+      expect(error.issues[0]?.span).toEqual({ start: 7, end: 8 })
+      return true
+    })
+  })
+
   // 스냅샷을 뜨는 도중 지원하지 않는 AST 노드를 만나면 전용 오류를 보고한다.
   // 이 오류는 AST의 상태를 나타내며 소스 진단 배열은 비어 있다.
   it('reports UNSUPPORTED_EXPRESSION_NODE without a source diagnostic', () => {
