@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { Expression } from '../src/expression/index.js'
-import { ZSL, ZslSyntaxError, ZslValidationError } from '../src/zsl/index.js'
+import {
+  ZSL,
+  ZslSyntaxError,
+  ZslUnexpectedCharacterError,
+  ZslValidationError,
+} from '../src/zsl/index.js'
 
 const zsl = new ZSL()
 
@@ -44,6 +49,15 @@ describe('ZSL templates', () => {
       expression.evaluate({ event: { name: '로그아웃', severity: 9 } }),
     ).toBe('로그아웃의 위험도는 9입니다.')
     expect(expression.evaluate()).toBe('null의 위험도는 null입니다.')
+  })
+
+  it('looks up a canonically equivalent Unicode property name', () => {
+    const expression = zsl.compile("${GET('event', '가')}")
+    const decomposedKey = '가'.normalize('NFD')
+
+    expect(expression.evaluate({ event: { [decomposedKey]: '완료' } })).toBe(
+      '완료',
+    )
   })
 
   // 선택되지 않는 분기와 단락되는 오른쪽 항에 0으로 나누는 식을 둔다.
@@ -100,6 +114,22 @@ describe('ZSL templates', () => {
       expect.objectContaining({
         issues: [expect.objectContaining({ kind, span })],
       }),
+    )
+  })
+
+  it('reports the full Unicode grapheme in a composite emoji syntax error', () => {
+    const source = '알림 🌐 ${4 + 👩🏽‍💻}'
+
+    assert.throws(
+      () => zsl.compile(source),
+      (error: unknown) => {
+        assert(error instanceof ZslUnexpectedCharacterError)
+        const [issue] = error.issues
+        assert(issue)
+        const { start, end } = issue.span
+        expect(source.slice(start, end)).toBe('👩🏽‍💻')
+        return true
+      },
     )
   })
 
