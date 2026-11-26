@@ -335,6 +335,7 @@ describe('GET', () => {
   it.each([
     { label: 'object', value: {} },
     { label: 'array', value: [] },
+    { label: 'Date', value: new Date('2024-01-02T03:04:05.000Z') },
     { label: 'function', value: () => 1 },
     { label: 'bigint', value: 1n },
     { label: 'symbol', value: Symbol() },
