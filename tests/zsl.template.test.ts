@@ -35,6 +35,12 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe(expected)
   })
 
+  it('renders an escaped template opener as literal text', () => {
+    const expression = zsl.compile('예시: \\${42}')
+
+    expect(expression.evaluate()).toBe('예시: ${42}')
+  })
+
   it('preserves the difference between adjacent large numeric literals', () => {
     const expression = zsl.compile('${9007199254740992},${9007199254740993}')
 
