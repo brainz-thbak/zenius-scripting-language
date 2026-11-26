@@ -399,6 +399,17 @@ describe('ZSL templates', () => {
     )
   })
 
+  it('includes a combining mark in the unexpected character span', () => {
+    const source = '앞 ${4 + @\u0301}'
+
+    expect(() => zsl.compile(source)).toThrow(
+      expect.objectContaining({
+        code: 'UNEXPECTED_CHARACTER',
+        issues: [expect.objectContaining({ span: { start: 8, end: 10 } })],
+      }),
+    )
+  })
+
   // 닫힌 구간을 파싱할 때는 지원하지 않는 이스케이프 위치를 보고한다.
   // 구간 자체가 닫히지 않으면 구간 탐색 오류를 먼저 보고한다.
   it.each([
