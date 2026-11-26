@@ -58,7 +58,7 @@ function get(
       value = undefined
       continue
     }
-    const descriptor = Object.getOwnPropertyDescriptor(value, arg.value)
+    const descriptor = findOwnPropertyDescriptor(value, arg.value)
     value =
       descriptor && Object.hasOwn(descriptor, 'value')
         ? descriptor.value
@@ -75,4 +75,30 @@ function get(
     return value
   }
   throw new ZslInvalidFunctionResultError('GET', span)
+}
+
+function findOwnPropertyDescriptor(
+  object: object,
+  key: string,
+): PropertyDescriptor | undefined {
+  const exact = Object.getOwnPropertyDescriptor(object, key)
+  if (exact !== undefined) {
+    return exact
+  }
+
+  const normalizedKey = key.normalize('NFC')
+  let matchingKey: string | undefined
+  for (const ownKey of Object.getOwnPropertyNames(object)) {
+    if (ownKey.normalize('NFC') !== normalizedKey) {
+      continue
+    }
+    if (matchingKey !== undefined) {
+      return undefined
+    }
+    matchingKey = ownKey
+  }
+
+  return matchingKey === undefined
+    ? undefined
+    : Object.getOwnPropertyDescriptor(object, matchingKey)
 }

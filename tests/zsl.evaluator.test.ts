@@ -274,6 +274,66 @@ describe('GET', () => {
     expect(getFieldAccessor).not.toHaveBeenCalled()
   })
 
+  it('resolves a canonically equivalent Unicode root key', () => {
+    const key = '가'.normalize('NFD')
+    const ast = parseExpression(`GET('${key}', 'status')`)
+
+    expect(evaluateExpression(ast, { 가: { status: '완료' } })).toBe('완료')
+  })
+
+  it('resolves a non-enumerable Unicode array key in the middle of a path', () => {
+    const entries = Object.defineProperty([], '가'.normalize('NFD'), {
+      value: { status: '완료' },
+    })
+    const ast = parseExpression("GET('entries', '가', 'status')")
+
+    expect(evaluateExpression(ast, { entries })).toBe('완료')
+  })
+
+  it.each([
+    {
+      label: 'returns the exact match when equivalent keys coexist',
+      event: { '\u00C5': '정확', '\u212B': '동등', 'A\u030A': '분해' },
+      expected: '정확',
+    },
+    {
+      label: 'returns the only canonically equivalent own key',
+      event: { '\u212B': '동등' },
+      expected: '동등',
+    },
+    {
+      label: 'returns null when equivalent own keys collide',
+      event: { '\u212B': '동등', 'A\u030A': '분해' },
+      expected: null,
+    },
+    {
+      label: 'ignores an inherited Unicode key',
+      event: Object.setPrototypeOf({}, { '\u212B': '상속' }),
+      expected: null,
+    },
+  ])('$label', ({ event, expected }) => {
+    const ast = parseExpression("GET('event', 'Å')")
+
+    expect(evaluateExpression(ast, { event })).toBe(expected)
+  })
+
+  it('skips Unicode accessors without invoking their getters', () => {
+    const getter = vi.fn(() => '접근자')
+    const ast = parseExpression("GET('event', 'Å')")
+    const exactAccessor = Object.defineProperty(
+      { '\u212B': '동등' },
+      '\u00C5',
+      { get: getter },
+    )
+    const equivalentAccessor = Object.defineProperty({}, '\u212B', {
+      get: getter,
+    })
+
+    expect(evaluateExpression(ast, { event: exactAccessor })).toBeNull()
+    expect(evaluateExpression(ast, { event: equivalentAccessor })).toBeNull()
+    expect(getter).not.toHaveBeenCalled()
+  })
+
   // 호출 이름, 인자 개수, 인자 타입, 인자 표현식에서 난 오류를 구분한다.
   // 진단은 호출 전체, 잘못된 인자, 또는 인자 안에서 평가가 실패한 위치를 가리킨다.
   it.each([
