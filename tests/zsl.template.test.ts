@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Expression, ZSL, ZslValidationError } from '../src/zsl/index.js'
+import { ZSL, ZslValidationError } from '../src/zsl/index.js'
+import { Expression } from '../src/expression/index.js'
 
 const zsl = new ZSL()
 
@@ -142,5 +143,49 @@ describe('ZSL templates', () => {
     ])
 
     expect(expression.evaluate()).toBe('value=true')
+  })
+
+  it('isolates nested snapshot nodes and source ranges from evaluation', () => {
+    const source = "${true ? GET('event', 'severity') + 1 : 0}"
+    const expression = zsl.compile(source)
+    const expected = zsl.compile(source).getAstSnapshot()
+    const [part] = expression.getAstSnapshot()
+    if (part?.kind !== 'expression' || part.expression.kind !== 'conditional') {
+      throw new Error('Expected a conditional expression')
+    }
+    const branch = part.expression.whenTrue
+    if (branch.kind !== 'binary' || branch.left.kind !== 'call') {
+      throw new Error('Expected a function call inside the true branch')
+    }
+    const key = branch.left.args[1]
+    if (key?.kind !== 'literal') {
+      throw new Error('Expected a literal property name')
+    }
+
+    Reflect.set(key, 'value', 'missing')
+    Reflect.set(key.span, 'start', 0)
+
+    expect(expression.evaluate({ event: { severity: 6 } })).toBe('7')
+    expect(expression.getAstSnapshot()).toEqual(expected)
+  })
+
+  it('lets the caller change its input after taking a snapshot', () => {
+    const part = { kind: 'text' as const, value: 'original' }
+    const parts = [part]
+    const expression = new Expression(parts)
+    const snapshot = expression.getAstSnapshot()
+
+    parts.push({ kind: 'text', value: ' extra' })
+    part.value = 'changed'
+
+    expect(snapshot).toEqual([{ kind: 'text', value: 'original' }])
+  })
+
+  it('copies deeply nested expressions at the supported evaluation depth', () => {
+    const additions = 20_000
+    const source = `\${${'1+'.repeat(additions)}1}`
+    const snapshot = zsl.compile(source).getAstSnapshot()
+
+    expect(new Expression(snapshot).evaluate()).toBe(String(additions + 1))
   })
 })

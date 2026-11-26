@@ -1,13 +1,126 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { evaluateExpression } from '../src/evaluator/index.js'
 import { ZslValidationError } from '../src/exception/index.js'
 import { parseExpression } from '../src/parser/index.js'
-import { evaluationCases } from './zsl.cases.js'
+import { literalCases } from './zsl.literal-cases.js'
 
 const overflowingProduct = `${'9'.repeat(308)} * 2`
 
 describe('evaluateExpression', () => {
-  it.each(evaluationCases)('evaluates $name', ({ input, expected }) => {
+  it.each([
+    ...literalCases,
+    { name: 'addition', input: '1 + 2', expected: 3 },
+    { name: 'subtraction', input: '7 - 3', expected: 4 },
+    { name: 'multiplication', input: '3 * 4', expected: 12 },
+    { name: 'division', input: '8 / 2', expected: 4 },
+    { name: 'precedence', input: '1 + 2 * 3', expected: 7 },
+    { name: 'parentheses', input: '(1 + 2) * 3', expected: 9 },
+    { name: 'nested parentheses', input: '((1 + 2) * (3 + 4))', expected: 21 },
+    { name: 'left-associative subtraction', input: '8 - 3 - 2', expected: 3 },
+    { name: 'left-associative division', input: '8 / 4 / 2', expected: 1 },
+    {
+      name: 'equal multiplication and division precedence',
+      input: '24 / 3 * 2',
+      expected: 16,
+    },
+    { name: 'decimal division', input: '3 / 2', expected: 1.5 },
+    { name: 'subtraction below zero', input: '2 - 5', expected: -3 },
+    { name: 'whitespace between tokens', input: '1\t+\r\n2', expected: 3 },
+    { name: 'grouped string literal', input: '("event")', expected: 'event' },
+    { name: 'ternary true', input: 'true ? 1 : 2', expected: 1 },
+    { name: 'ternary false', input: 'false ? 1 : 2', expected: 2 },
+    { name: 'logical and', input: 'true && false', expected: false },
+    {
+      name: 'AND can return a true right operand',
+      input: 'true && true',
+      expected: true,
+    },
+    { name: 'logical or', input: 'false || true', expected: true },
+    {
+      name: 'OR can return a false right operand',
+      input: 'false || false',
+      expected: false,
+    },
+    { name: 'null fallback', input: 'null ?? 10', expected: 10 },
+    { name: 'zero is not null', input: '0 ?? 10', expected: 0 },
+    { name: 'false is not null', input: 'false ?? 10', expected: false },
+    { name: 'empty string is not null', input: "'' ?? 10", expected: '' },
+    {
+      name: 'nested true branch',
+      input: 'true ? false ? 1 : 2 : 3',
+      expected: 2,
+    },
+    {
+      name: 'nested false branch',
+      input: 'false ? 1 : true ? 2 : 3',
+      expected: 2,
+    },
+    {
+      name: 'ternaries associate to the right',
+      input: 'true ? true : false ? 2 : 3',
+      expected: true,
+    },
+    {
+      name: 'arithmetic binds more tightly than OR',
+      input: 'true || 1 + 2',
+      expected: true,
+    },
+    {
+      name: 'arithmetic binds more tightly than AND',
+      input: 'false && 1 + 2',
+      expected: false,
+    },
+    {
+      name: 'AND binds more tightly than OR',
+      input: 'true || false && false',
+      expected: true,
+    },
+    {
+      name: 'parentheses override logical precedence',
+      input: '(true || false) && false',
+      expected: false,
+    },
+    {
+      name: 'OR binds more tightly than null coalescing',
+      input: 'false ?? false || true',
+      expected: false,
+    },
+    {
+      name: 'AND binds more tightly than null coalescing',
+      input: 'true ?? false && false',
+      expected: true,
+    },
+    {
+      name: 'null coalescing binds more tightly than ternary',
+      input: 'false??true?1:2',
+      expected: 2,
+    },
+    {
+      name: 'skips invalid false branch',
+      input: "true ? 'yes' : false + 1",
+      expected: 'yes',
+    },
+    {
+      name: 'skips invalid true branch',
+      input: "false ? 1 / 0 : 'no'",
+      expected: 'no',
+    },
+    {
+      name: 'AND skips invalid right operand',
+      input: 'false && 1',
+      expected: false,
+    },
+    {
+      name: 'OR skips invalid right operand',
+      input: 'true || null',
+      expected: true,
+    },
+    {
+      name: 'null coalescing skips invalid fallback',
+      input: '0 ?? (1 / 0)',
+      expected: 0,
+    },
+  ])('evaluates $name', ({ input, expected }) => {
     expect(evaluateExpression(parseExpression(input))).toBe(expected)
   })
 
@@ -139,6 +252,32 @@ describe('GET', () => {
       expect(evaluateExpression(parseExpression(input), data)).toBeNull()
     }
   })
+
+  it.each(['context', 'nested value'])(
+    'does not invoke Proxy traps on the %s',
+    (location) => {
+      const getOwnPropertyDescriptor = vi.fn(Reflect.getOwnPropertyDescriptor)
+      const get = vi.fn(Reflect.get)
+      const getPrototypeOf = vi.fn(Reflect.getPrototypeOf)
+      const handler = { getOwnPropertyDescriptor, get, getPrototypeOf }
+      const target = { event: { severity: 6 } }
+      const data =
+        location === 'context'
+          ? new Proxy<typeof target>(target, handler)
+          : { event: new Proxy(target.event, handler) }
+      const ast = parseExpression("GET('event', 'severity')")
+
+      try {
+        evaluateExpression(ast, data)
+      } catch (error) {
+        expect(error).toBeInstanceOf(ZslValidationError)
+      }
+
+      expect(getOwnPropertyDescriptor).not.toHaveBeenCalled()
+      expect(get).not.toHaveBeenCalled()
+      expect(getPrototypeOf).not.toHaveBeenCalled()
+    },
+  )
 
   it.each([
     { input: 'GET()', source: 'GET()' },

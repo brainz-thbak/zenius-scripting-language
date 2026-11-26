@@ -1,6 +1,6 @@
 # 공개 API
 
-패키지 `@zenius/zsl`에서 `ZSL`, `Expression`, `ZslValidationError`를 가져올 수 있다. [패키지 진입점](../src/zsl/index.ts)
+패키지 `@zenius/zsl`은 `ZSL`과 `ZslValidationError`를 내보낸다. `Expression`과 `ZslIssue`는 타입으로 가져올 수 있다. [패키지 진입점](../src/zsl/index.ts)
 
 ## 컴파일
 
@@ -22,4 +22,20 @@ expression.evaluate({ event: { severity: 8 } }) // 'test: {12}'
 
 ```ts
 zsl.compile('${4 + 6}').evaluate() // '10'
+```
+
+## AST 조회
+
+`getAstSnapshot()`은 호출할 때마다 템플릿 AST의 새 복사본을 반환한다. 복사본에는 텍스트 구간, 표현식 노드, 소스 범위가 포함된다. 복사본의 변경은 원래 `Expression`의 평가나 다음 스냅샷에 영향을 주지 않는다. [Expression 클래스](../src/expression/expression.ts)
+
+```ts
+const snapshot = zsl.compile('값: ${42}').getAstSnapshot()
+
+// [
+//   { kind: 'text', value: '값: ' },
+//   {
+//     kind: 'expression',
+//     expression: { kind: 'literal', value: 42, span: { start: 5, end: 7 } },
+//   },
+// ]
 ```

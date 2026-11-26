@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import type { SourceSpan } from '../src/ast/index.js'
 import { ZslValidationError } from '../src/exception/index.js'
 import { readToken } from '../src/lexer/index.js'
 import { parseExpression } from '../src/parser/index.js'
-import { literalEvaluationCases, parseRejectCases } from './zsl.cases.js'
+import { literalCases } from './zsl.literal-cases.js'
 
 describe('readToken', () => {
   it('reads a single token at a time from source offsets', () => {
@@ -61,7 +62,7 @@ describe('readToken', () => {
 })
 
 describe('parseExpression', () => {
-  it.each(literalEvaluationCases)('parses $name', ({ input, expected }) => {
+  it.each(literalCases)('parses $name', ({ input, expected }) => {
     expect(parseExpression(input)).toEqual({
       kind: 'literal',
       value: expected,
@@ -147,7 +148,150 @@ describe('parseExpression', () => {
     })
   })
 
-  it.each(parseRejectCases)('rejects $name', ({ input, span }) => {
+  it.each<{ name: string; input: string; span?: SourceSpan }>([
+    { name: 'empty', input: '', span: { start: 0, end: 0 } },
+    { name: 'whitespace only', input: ' \t\r\n', span: { start: 4, end: 4 } },
+    { name: 'adjacent literals', input: '4 5', span: { start: 2, end: 3 } },
+    { name: 'unclosed string', input: "'event", span: { start: 0, end: 6 } },
+    { name: 'unclosed escape', input: "'event\\", span: { start: 0, end: 7 } },
+    {
+      name: 'unsupported string escape',
+      input: "'\\q'",
+      span: { start: 1, end: 3 },
+    },
+    { name: 'missing integer part', input: '.5', span: { start: 0, end: 1 } },
+    {
+      name: 'missing fractional part',
+      input: '4.',
+      span: { start: 1, end: 2 },
+    },
+    { name: 'unclosed group', input: '(1 + 2', span: { start: 6, end: 6 } },
+    { name: 'missing operand', input: '1 +', span: { start: 3, end: 3 } },
+    { name: 'empty group', input: '()', span: { start: 1, end: 2 } },
+    {
+      name: 'operator in place of an operand',
+      input: '1 + * 2',
+      span: { start: 4, end: 5 },
+    },
+    {
+      name: 'unmatched closing parenthesis',
+      input: '1 + 2)',
+      span: { start: 5, end: 6 },
+    },
+    {
+      name: 'adjacent literals in a group',
+      input: '(1 2)',
+      span: { start: 3, end: 4 },
+    },
+    { name: 'missing colon', input: 'true ? 1', span: { start: 8, end: 8 } },
+    {
+      name: 'missing true branch',
+      input: 'true ? : 2',
+      span: { start: 7, end: 8 },
+    },
+    {
+      name: 'missing false branch',
+      input: 'true ? 1 :',
+      span: { start: 10, end: 10 },
+    },
+    {
+      name: 'extra colon',
+      input: 'true ? 1 : 2 : 3',
+      span: { start: 13, end: 14 },
+    },
+    {
+      name: 'colon outside its group',
+      input: '(true ? 1) : 2',
+      span: { start: 9, end: 10 },
+    },
+    {
+      name: 'missing logical operand',
+      input: 'true &&',
+      span: { start: 7, end: 7 },
+    },
+    {
+      name: 'single ampersand',
+      input: 'true & false',
+      span: { start: 5, end: 6 },
+    },
+    { name: 'single pipe', input: 'true | false', span: { start: 5, end: 6 } },
+    {
+      name: 'extra question mark after null coalescing',
+      input: 'null ??? 1',
+      span: { start: 7, end: 8 },
+    },
+    {
+      name: 'missing call closing parenthesis',
+      input: "GET('😀'",
+      span: { start: 8, end: 8 },
+    },
+    {
+      name: 'missing argument and call closing parenthesis',
+      input: 'GET(',
+      span: { start: 4, end: 4 },
+    },
+    {
+      name: 'missing first argument',
+      input: "GET(, 'x')",
+      span: { start: 4, end: 5 },
+    },
+    {
+      name: 'missing middle argument',
+      input: "GET('😀',,'x')",
+      span: { start: 9, end: 10 },
+    },
+    { name: 'trailing comma', input: "GET('a',)", span: { start: 8, end: 9 } },
+    {
+      name: 'missing comma',
+      input: "GET('a' 'b')",
+      span: { start: 8, end: 11 },
+    },
+    {
+      name: 'comma in a group',
+      input: "GET(('a','b'), 'c')",
+      span: { start: 8, end: 9 },
+    },
+    { name: 'true is reserved', input: 'true()', span: { start: 4, end: 5 } },
+    { name: 'false is reserved', input: 'false()', span: { start: 5, end: 6 } },
+    { name: 'null is reserved', input: 'null()', span: { start: 4, end: 5 } },
+    { name: 'multiple expressions', input: '1; 2' },
+    { name: 'assignment', input: 'a = 1' },
+    { name: 'compound assignment', input: 'a += 1' },
+    { name: 'increment', input: 'a++' },
+    { name: 'decrement', input: '--a' },
+    { name: 'const declaration', input: 'const a = 1' },
+    { name: 'let declaration', input: 'let a = 1' },
+    { name: 'var declaration', input: 'var a = 1' },
+    { name: 'function declaration', input: 'function f() {}' },
+    { name: 'if statement', input: 'if (true) 1' },
+    { name: 'for statement', input: 'for (;;) {}' },
+    { name: 'switch statement', input: 'switch (1) {}' },
+    { name: 'while statement', input: 'while (true) {}' },
+    { name: 'with statement', input: 'with (event) {}' },
+    { name: 'dot access', input: 'event.severity', span: { start: 5, end: 6 } },
+    {
+      name: 'bracket access',
+      input: 'event["severity"]',
+      span: { start: 5, end: 6 },
+    },
+    { name: 'dot access after a call', input: "GET('event', 'source').ip" },
+    {
+      name: 'bracket access after a call',
+      input: "GET('event', 'source')['ip']",
+    },
+    { name: 'calling a returned value', input: "GET('event', 'severity')()" },
+    {
+      name: 'bare window identifier',
+      input: 'window',
+      span: { start: 0, end: 6 },
+    },
+    {
+      name: 'bare document identifier after whitespace',
+      input: ' document ',
+      span: { start: 1, end: 9 },
+    },
+    { name: 'bare Vue identifier', input: 'Vue', span: { start: 0, end: 3 } },
+  ])('rejects $name', ({ input, span }) => {
     expect(() => parseExpression(input)).toThrow(
       expect.objectContaining({
         constructor: ZslValidationError,

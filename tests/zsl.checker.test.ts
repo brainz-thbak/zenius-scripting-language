@@ -2,10 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { checkExpression } from '../src/checker/index.js'
 import { ZslValidationError } from '../src/exception/index.js'
 import { parseExpression } from '../src/parser/index.js'
-import { callCheckRejectCases } from './zsl.cases.js'
 
 describe('checkExpression', () => {
-  it.each(callCheckRejectCases)('rejects $name after parsing', ({ input }) => {
+  it.each([
+    { name: 'unknown function', input: 'unknown()' },
+    { name: 'wrong case', input: "get('event', 'severity')" },
+    { name: 'Object constructor', input: 'constructor()' },
+    { name: 'Object method', input: 'toString()' },
+    { name: 'Object prototype property', input: '__proto__()' },
+    { name: 'fetch', input: 'fetch("/")' },
+    { name: 'XHR', input: 'XMLHttpRequest()' },
+    { name: 'dayjs', input: 'dayjs()' },
+    { name: 'GET without arguments', input: 'GET()' },
+    { name: 'GET with one argument', input: "GET('event')" },
+  ])('rejects $name after parsing', ({ input }) => {
     const ast = parseExpression(input)
     expect(() => checkExpression(ast)).toThrow(
       expect.objectContaining({
