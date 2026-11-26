@@ -1,13 +1,18 @@
 import type { ExpressionAst, TemplateAst, TemplatePart } from '../ast/index.js'
 import { evaluateExpression } from '../evaluator/index.js'
-import { ZslUnsupportedExpressionNodeError } from '../exception/index.js'
+import {
+  ZslOutputLengthLimitExceededError,
+  ZslUnsupportedExpressionNodeError,
+} from '../exception/index.js'
 import type { ExpressionContract, ZslContext } from './types.js'
 
 export class Expression implements ExpressionContract {
   readonly #ast: TemplateAst
+  readonly #maxOutputLength: number | undefined
 
-  constructor(ast: TemplateAst) {
+  constructor(ast: TemplateAst, maxOutputLength?: number) {
     this.#ast = ast
+    this.#maxOutputLength = maxOutputLength
   }
 
   getAstSnapshot(): TemplateAst {
@@ -15,12 +20,20 @@ export class Expression implements ExpressionContract {
   }
 
   evaluate(context?: ZslContext): string {
+    const maxOutputLength = this.#maxOutputLength
     let result = ''
     for (const part of this.#ast) {
-      result +=
+      const renderedPart =
         part.kind === 'text'
           ? part.value
           : String(evaluateExpression(part.expression, context))
+      if (
+        maxOutputLength !== undefined &&
+        result.length + renderedPart.length > maxOutputLength
+      ) {
+        throw new ZslOutputLengthLimitExceededError(maxOutputLength)
+      }
+      result += renderedPart
     }
     return result
   }

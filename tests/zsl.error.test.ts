@@ -7,12 +7,14 @@ import {
   ZslDivisionByZeroError,
   ZslError,
   ZslExpectedArgumentDelimiterError,
+  ZslInputLengthLimitExceededError,
   ZslInsufficientArgumentsError,
   ZslInvalidArgumentTypeError,
   ZslInvalidArithmeticOperandTypeError,
   ZslInvalidConditionTypeError,
   ZslInvalidFunctionResultError,
   ZslInvalidLogicalOperandTypeError,
+  ZslInvalidSourceTypeError,
   ZslInvalidStringCharacterError,
   type ZslIssue,
   ZslMissingCallOpeningParenError,
@@ -22,6 +24,7 @@ import {
   ZslMissingOperandError,
   ZslNonFiniteArithmeticResultError,
   ZslNonFiniteNumberLiteralError,
+  ZslOutputLengthLimitExceededError,
   ZslSyntaxError,
   ZslTrailingTokenError,
   ZslUnexpectedCharacterError,
@@ -210,6 +213,33 @@ describe('ZSL errors', () => {
         return true
       },
     )
+  })
+
+  it.each([
+    {
+      run: () => Reflect.apply(zsl.compile, zsl, [null]),
+      type: ZslInvalidSourceTypeError,
+      code: 'INVALID_SOURCE_TYPE',
+    },
+    {
+      run: () => new ZSL({ maxInputLength: 1 }).compile('ab'),
+      type: ZslInputLengthLimitExceededError,
+      code: 'INPUT_LENGTH_LIMIT_EXCEEDED',
+      details: { limit: 1 },
+    },
+    {
+      run: () => new ZSL({ maxOutputLength: 2 }).compile('abc').evaluate(),
+      type: ZslOutputLengthLimitExceededError,
+      code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED',
+      details: { limit: 2 },
+    },
+  ])('throws the public $code error', ({ run, type, code, details }) => {
+    assert.throws(run, (error: unknown) => {
+      expect(error).toBeInstanceOf(type)
+      expect(error).toBeInstanceOf(ZslError)
+      expect(error).toMatchObject({ code, issues: [], ...details })
+      return true
+    })
   })
 
   // 컴파일러는 미등록 함수와 인자 수가 부족한 함수를 서로 다른 검사 오류로 보고한다.

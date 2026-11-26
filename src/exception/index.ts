@@ -1,3 +1,8 @@
+export { ZslInvalidSourceTypeError } from './invalid-source-type-error.js'
+export {
+  ZslInputLengthLimitExceededError,
+  ZslOutputLengthLimitExceededError,
+} from './length-limit-exceeded-error.js'
 export {
   ZslExpectedArgumentDelimiterError,
   ZslInvalidStringCharacterError,

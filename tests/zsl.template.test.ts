@@ -3,12 +3,209 @@ import { describe, expect, it } from 'vitest'
 import { Expression } from '../src/expression/index.js'
 import {
   ZSL,
+  ZslError,
   ZslSyntaxError,
   ZslUnexpectedCharacterError,
   ZslValidationError,
 } from '../src/zsl/index.js'
 
 const zsl = new ZSL()
+
+describe('ZSL compile input and length limits', () => {
+  it('exposes configured input and output limits on the instance', () => {
+    const compiler = new ZSL({ maxInputLength: 7, maxOutputLength: 4 })
+
+    expect(compiler.maxInputLength).toBe(7)
+    expect(compiler.maxOutputLength).toBe(4)
+    expect(zsl.maxInputLength).toBe(16_384)
+    expect(zsl.maxOutputLength).toBe(65_536)
+  })
+
+  it('enforces the default input limit at the source boundary', () => {
+    const source = 'x'.repeat(16_384)
+
+    expect(zsl.compile(source).evaluate()).toBe(source)
+    expect(() => zsl.compile(`${source}x`)).toThrow(
+      expect.objectContaining({
+        code: 'INPUT_LENGTH_LIMIT_EXCEEDED',
+        limit: 16_384,
+      }),
+    )
+  })
+
+  it('enforces the default output limit at the evaluated text boundary', () => {
+    const expression = zsl.compile("${GET('event', 'value')}")
+    const value = 'x'.repeat(65_536)
+
+    expect(expression.evaluate({ event: { value } })).toBe(value)
+    expect(() =>
+      expression.evaluate({ event: { value: `${value}x` } }),
+    ).toThrow(
+      expect.objectContaining({
+        code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED',
+        limit: 65_536,
+      }),
+    )
+  })
+
+  it('uses the default limit independently for omitted and undefined options', () => {
+    const emptyInput = new ZSL({ maxInputLength: 0 })
+    const largerOutput = new ZSL({
+      maxInputLength: undefined,
+      maxOutputLength: 65_537,
+    })
+
+    expect(emptyInput.maxInputLength).toBe(0)
+    expect(emptyInput.maxOutputLength).toBe(65_536)
+    expect(largerOutput.maxInputLength).toBe(16_384)
+    expect(largerOutput.maxOutputLength).toBe(65_537)
+
+    const value = 'x'.repeat(65_537)
+    const expression = largerOutput.compile("${GET('event', 'value')}")
+    expect(expression.evaluate({ event: { value } })).toBe(value)
+  })
+
+  it('accepts a compiler adapter without limit properties', () => {
+    const compiler: ZSL = { compile: (source) => zsl.compile(source) }
+
+    expect(compiler.compile('${42}').evaluate()).toBe('42')
+  })
+
+  it('compiles templates when passed as a callback with default options', () => {
+    const compiler = new ZSL()
+    const expressions = ['value: ${1}', 'text'].map(compiler.compile)
+
+    expect(expressions.map((expression) => expression.evaluate())).toEqual([
+      'value: 1',
+      'text',
+    ])
+  })
+
+  it('applies the instance limits when compile is passed as a callback', () => {
+    const compiler = new ZSL({ maxInputLength: 2, maxOutputLength: 1 })
+
+    expect(() => ['abc'].map(compiler.compile)).toThrow(
+      expect.objectContaining({ code: 'INPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+    const expressions = ['ab'].map(compiler.compile)
+    expect(() =>
+      expressions.map((expression) => expression.evaluate()),
+    ).toThrow(expect.objectContaining({ code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED' }))
+  })
+
+  it.each([null, 42])('rejects non-string source %j', (source) => {
+    assert.throws(
+      () => Reflect.apply(zsl.compile, zsl, [source]),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(ZslError)
+        expect(error).toMatchObject({ code: 'INVALID_SOURCE_TYPE', issues: [] })
+        return true
+      },
+    )
+  })
+
+  it.each([
+    { maxInputLength: 7, maxOutputLength: 4 },
+    { maxInputLength: 8, maxOutputLength: 5 },
+  ])(
+    'returns the full result within $maxInputLength input and $maxOutputLength output code units',
+    (options) => {
+      expect(new ZSL(options).compile('😀${42}').evaluate()).toBe('😀42')
+    },
+  )
+
+  it('checks the full source length in UTF-16 code units before parsing', () => {
+    const limited = new ZSL({ maxInputLength: 4 })
+    const compile = () => limited.compile('😀${1')
+
+    expect(compile).toThrow(
+      expect.objectContaining({
+        code: 'INPUT_LENGTH_LIMIT_EXCEEDED',
+        limit: 4,
+      }),
+    )
+    expect(() => limited.compile('${1')).toThrow(
+      expect.objectContaining({ code: 'UNTERMINATED_TEMPLATE_EXPRESSION' }),
+    )
+  })
+
+  it('checks the combined output length in UTF-16 code units on each evaluation', () => {
+    const expression = new ZSL({ maxOutputLength: 3 }).compile(
+      "😀${GET('event', 'value')}",
+    )
+
+    expect(() => expression.evaluate({ event: { value: 42 } })).toThrow(
+      expect.objectContaining({
+        code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED',
+        limit: 3,
+      }),
+    )
+    expect(expression.evaluate({ event: { value: 1 } })).toBe('😀1')
+  })
+
+  it('reports output overflow before evaluating a later expression', () => {
+    const expression = new ZSL({ maxOutputLength: 1 }).compile('ab${1 / 0}')
+
+    expect(() => expression.evaluate()).toThrow(
+      expect.objectContaining({ code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+  })
+
+  it('keeps each instance and its compiled expressions on their original limits', () => {
+    const options = { maxInputLength: 2, maxOutputLength: 1 }
+    const strict = new ZSL(options)
+    const strictExpression = strict.compile('ab')
+
+    options.maxInputLength = 3
+    options.maxOutputLength = 2
+    const tolerant = new ZSL(options)
+
+    expect(() => strict.compile('abc')).toThrow(
+      expect.objectContaining({ code: 'INPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+    expect(() => tolerant.compile('abc')).not.toThrow()
+    expect(() => strictExpression.evaluate()).toThrow(
+      expect.objectContaining({ code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+    expect(() => strict.compile('ab').evaluate()).toThrow(
+      expect.objectContaining({ code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+    expect(tolerant.compile('ab').evaluate()).toBe('ab')
+  })
+
+  it('accepts zero limits for empty input and empty output', () => {
+    const emptyOnly = new ZSL({ maxInputLength: 0, maxOutputLength: 0 })
+
+    expect(emptyOnly.compile('').evaluate()).toBe('')
+    expect(() => emptyOnly.compile('x')).toThrow(
+      expect.objectContaining({ code: 'INPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+    const emptyOutputOnly = new ZSL({ maxOutputLength: 0 })
+    expect(emptyOutputOnly.compile('${""}').evaluate()).toBe('')
+    expect(() => emptyOutputOnly.compile('x').evaluate()).toThrow(
+      expect.objectContaining({ code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED' }),
+    )
+  })
+
+  it.each([-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, '10', null])(
+    'rejects invalid limit %s at construction',
+    (limit) => {
+      expect(() => Reflect.construct(ZSL, [{ maxInputLength: limit }])).toThrow(
+        RangeError,
+      )
+      expect(() =>
+        Reflect.construct(ZSL, [{ maxOutputLength: limit }]),
+      ).toThrow(RangeError)
+    },
+  )
+
+  it.each([{ options: null }, { options: 42 }, { options: [] }])(
+    'rejects invalid options $options at construction',
+    ({ options }) => {
+      expect(() => Reflect.construct(ZSL, [options])).toThrow(TypeError)
+    },
+  )
+})
 
 describe('ZSL templates', () => {
   // 일반 텍스트와 공백은 보존하고 표현식 구간의 결과를 원래 순서대로 끼워 넣는다.
@@ -259,7 +456,8 @@ describe('ZSL templates', () => {
   it('copies deeply nested expressions at the supported evaluation depth', () => {
     const additions = 20_000
     const source = `\${${'1+'.repeat(additions)}1}`
-    const snapshot = zsl.compile(source).getAstSnapshot()
+    const compiler = new ZSL({ maxInputLength: source.length })
+    const snapshot = compiler.compile(source).getAstSnapshot()
 
     expect(new Expression(snapshot).evaluate()).toBe(String(additions + 1))
   })
