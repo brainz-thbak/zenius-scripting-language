@@ -28,6 +28,9 @@ const stringEscapes = new Map([
   ['r', '\r'],
   ['t', '\t'],
 ])
+const graphemeSegmenter = new Intl.Segmenter(undefined, {
+  granularity: 'grapheme',
+})
 
 export function readToken(
   source: string,
@@ -38,10 +41,18 @@ export function readToken(
   while (start < limit && /[ \t\r\n]/.test(source.charAt(start))) {
     start++
   }
+  if (start > offset) {
+    requireGraphemeBoundary(source, offset, start, limit)
+  }
   if (start === limit) {
     return { kind: 'eof', span: { start, end: start } }
   }
+  const token = readTokenAt(source, start, limit)
+  requireGraphemeBoundary(source, start, token.span.end, limit)
+  return token
+}
 
+function readTokenAt(source: string, start: number, limit: number): Token {
   const pair = source.slice(start, Math.min(start + 2, limit))
   switch (pair) {
     case '&&':
@@ -85,10 +96,38 @@ export function readToken(
   if (/[a-zA-Z_]/.test(character)) {
     return readIdentifier(source, start, limit)
   }
-  throw new ZslUnexpectedCharacterError({
-    start,
-    end: characterEnd(source, start, limit),
-  })
+  throw new ZslUnexpectedCharacterError(graphemeSpanAt(source, start, limit))
+}
+
+function requireGraphemeBoundary(
+  source: string,
+  start: number,
+  end: number,
+  limit: number,
+): void {
+  if (end === limit || source.charCodeAt(end) < 0x80) {
+    return
+  }
+  const span = graphemeSpanAt(source, start, limit, end - 1)
+  if (span.end > end) {
+    throw new ZslUnexpectedCharacterError(span)
+  }
+}
+
+function graphemeSpanAt(
+  source: string,
+  start: number,
+  limit: number,
+  offset = start,
+): SourceSpan {
+  const grapheme = graphemeSegmenter
+    .segment(source.slice(start, limit))
+    .containing(offset - start)
+  if (grapheme === undefined) {
+    return { start: offset, end: offset }
+  }
+  const graphemeStart = start + grapheme.index
+  return { start: graphemeStart, end: graphemeStart + grapheme.segment.length }
 }
 
 function readString(
@@ -136,6 +175,7 @@ function readNumber(source: string, start: number, limit: number): Token {
     const fractionStart = end + 1
     const fractionEnd = digitEnd(source, fractionStart, limit)
     if (fractionStart === fractionEnd) {
+      requireGraphemeBoundary(source, start, fractionStart, limit)
       throw new ZslMissingFractionDigitError({
         start: end,
         end: fractionStart,
@@ -145,6 +185,7 @@ function readNumber(source: string, start: number, limit: number): Token {
   }
   const value = Number(source.slice(start, end))
   if (!Number.isFinite(value)) {
+    requireGraphemeBoundary(source, start, end, limit)
     throw new ZslNonFiniteNumberLiteralError({ start, end })
   }
   return literalToken(value, start, end)

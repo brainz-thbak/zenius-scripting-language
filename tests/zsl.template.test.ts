@@ -410,6 +410,192 @@ describe('ZSL templates', () => {
     )
   })
 
+  it('includes the leading digit in an unexpected keycap emoji span', () => {
+    const source = '${1️⃣}'
+
+    expect(() => zsl.compile(source)).toThrow(
+      expect.objectContaining({
+        code: 'UNEXPECTED_CHARACTER',
+        issues: [expect.objectContaining({ span: { start: 2, end: 5 } })],
+      }),
+    )
+  })
+
+  describe('unexpected character grapheme spans', () => {
+    const extensions = [
+      { name: 'combining mark', text: '\u0301' },
+      { name: 'spacing mark', text: '\u093e' },
+      { name: 'zero-width joiner', text: '\u200d' },
+      { name: 'variation selector', text: '\ufe0f' },
+      { name: 'supplementary emoji modifier', text: '\u{1f3fd}' },
+      { name: 'multiple combining marks', text: '\u0301\u0327' },
+    ]
+    const tokenEnds = [
+      { name: 'integer', before: '12', base: '3', after: '' },
+      { name: 'fraction', before: '12.', base: '3', after: '' },
+      { name: 'true literal', before: 'tru', base: 'e', after: '' },
+      { name: 'false literal', before: 'fals', base: 'e', after: '' },
+      { name: 'null literal', before: 'nul', base: 'l', after: '' },
+      { name: 'identifier', before: '', base: 'x', after: '()' },
+      { name: 'identifier underscore', before: 'fn', base: '_', after: '()' },
+      { name: 'identifier digit', before: 'fn', base: '1', after: '()' },
+      { name: 'single quote', before: "'x", base: "'", after: '' },
+      { name: 'double quote', before: '"x', base: '"', after: '' },
+      { name: 'addition', before: '1', base: '+', after: '2' },
+      { name: 'subtraction', before: '1', base: '-', after: '2' },
+      { name: 'multiplication', before: '1', base: '*', after: '2' },
+      { name: 'division', before: '1', base: '/', after: '2' },
+      { name: 'logical AND', before: 'true&', base: '&', after: 'false' },
+      { name: 'logical OR', before: 'true|', base: '|', after: 'false' },
+      { name: 'nullish coalescing', before: 'null?', base: '?', after: '3' },
+      {
+        name: 'conditional question mark',
+        before: 'true',
+        base: '?',
+        after: '1:2',
+      },
+      { name: 'conditional colon', before: 'true?1', base: ':', after: '2' },
+      { name: 'group opening parenthesis', before: '', base: '(', after: '1)' },
+      { name: 'group closing parenthesis', before: '(1', base: ')', after: '' },
+      {
+        name: 'call opening parenthesis',
+        before: 'GET',
+        base: '(',
+        after: '"x")',
+      },
+      {
+        name: 'call closing parenthesis',
+        before: 'GET("x"',
+        base: ')',
+        after: '',
+      },
+      {
+        name: 'argument separator',
+        before: 'GET("x"',
+        base: ',',
+        after: '"y")',
+      },
+      { name: 'leading space', before: ' \t', base: ' ', after: '1' },
+      { name: 'trailing space', before: '1 ', base: ' ', after: '' },
+    ]
+
+    const tokenCases = tokenEnds.flatMap(({ name, before, base, after }) =>
+      extensions.map(({ name: extension, text }) => ({
+        name: `${name} with ${extension}`,
+        prefix: `\${${before}`,
+        grapheme: base + text,
+        suffix: `${after}}`,
+      })),
+    )
+    const keycapCases = [...'0123456789*#'].flatMap((base) => [
+      {
+        name: `keycap ${base} with a variation selector`,
+        prefix: '키캡 ${',
+        grapheme: `${base}\ufe0f\u20e3`,
+        suffix: '}',
+      },
+      {
+        name: `keycap ${base} without a variation selector`,
+        prefix: '키캡 ${',
+        grapheme: `${base}\u20e3`,
+        suffix: '}',
+      },
+    ])
+
+    it.each([
+      ...tokenCases,
+      ...keycapCases,
+      {
+        name: 'keycap at the end of a fraction',
+        prefix: '${12.',
+        grapheme: '3️⃣',
+        suffix: '}',
+      },
+      {
+        name: 'keycap at the end of an identifier',
+        prefix: '${fn',
+        grapheme: '1️⃣',
+        suffix: '()}',
+      },
+      {
+        name: 'keycap in place of a multiplication operator',
+        prefix: '${1',
+        grapheme: '*️⃣',
+        suffix: '2}',
+      },
+      {
+        name: 'combining mark after an escaped opener and an expression',
+        prefix: '🌐 \\${example} ${1} ${',
+        grapheme: 'x\u0301',
+        suffix: '()}',
+      },
+      {
+        name: 'standalone marks at the opening delimiter',
+        prefix: '🌐 ${',
+        grapheme: '\u0301\u0327',
+        suffix: '1}',
+      },
+      {
+        name: 'prepend character at the closing delimiter',
+        prefix: '${',
+        grapheme: '\u0600',
+        suffix: '}\u0301',
+      },
+      {
+        name: 'prepend character followed by an ASCII digit',
+        prefix: '${',
+        grapheme: '\u{600}1',
+        suffix: '}',
+      },
+      {
+        name: 'emoji adjacent to a valid token',
+        prefix: '${1',
+        grapheme: '😀',
+        suffix: '}',
+      },
+      {
+        name: 'regional indicator flag next to another flag',
+        prefix: '${',
+        grapheme: '🇰🇷',
+        suffix: '🇺🇸}',
+      },
+      {
+        name: 'Hangul jamo forming a single syllable',
+        prefix: '${',
+        grapheme: '각',
+        suffix: '}',
+      },
+      ...[
+        { name: 'tab', text: '\t' },
+        { name: 'carriage return', text: '\r' },
+        { name: 'line feed', text: '\n' },
+        { name: 'CRLF', text: '\r\n' },
+      ].map(({ name, text }) => ({
+        name: `standalone combining mark after ${name}`,
+        prefix: `\${${text}`,
+        grapheme: '\u0301',
+        suffix: '1}',
+      })),
+    ])(
+      'reports the whole grapheme for $name',
+      ({ prefix, grapheme, suffix }) => {
+        const source = prefix + grapheme + suffix
+        const start = prefix.length
+
+        expect(() => zsl.compile(source)).toThrow(
+          expect.objectContaining({
+            code: 'UNEXPECTED_CHARACTER',
+            issues: [
+              expect.objectContaining({
+                span: { start, end: start + grapheme.length },
+              }),
+            ],
+          }),
+        )
+      },
+    )
+  })
+
   // 닫힌 구간을 파싱할 때는 지원하지 않는 이스케이프 위치를 보고한다.
   // 구간 자체가 닫히지 않으면 구간 탐색 오류를 먼저 보고한다.
   it.each([

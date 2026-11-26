@@ -64,7 +64,8 @@ const snapshot = zsl.compile('값: ${42}').getAstSnapshot()
 `ZslError`는 `Error`를 상속한다. `ZslSyntaxError`와 `ZslValidationError`는 각각 `ZslError`를 상속한다. `instanceof`는 같은 패키지 진입점에서 가져온 오류 클래스의 상속 관계를 확인할 때 사용한다. [공통 오류 클래스](../src/exception/zsl-error.ts)
 
 - 오류 원인은 고정 문자열인 `code`로 판별한다. ESM과 CommonJS 진입점은 같은 오류에 같은 `code`를 제공한다. 예를 들어 `ZslDivisionByZeroError`의 코드는 `DIVISION_BY_ZERO`다. 분류 클래스의 기본 코드는 각각 `SYNTAX_ERROR`와 `VALIDATION_ERROR`다. [문법 오류 클래스](../src/exception/syntax-error.ts) · [검사와 평가 오류 클래스](../src/exception/validation-error.ts)
-- `issues`는 진단 배열이다. 각 `ZslIssue`는 진단의 `kind`, 상세 `message`, 소스 `span`을 담는다. 범위는 템플릿 원문에서 0부터 시작하는 UTF-16 코드 단위 오프셋이다. `start`를 포함하고 `end`를 제외한다. [진단 타입](../src/exception/types.ts)
+- `issues`는 진단 배열이다. 각 `ZslIssue`는 진단의 `kind`, 상세 `message`, 소스 `span`을 담는다. 각 오류는 진단 배열을 복사한다. 일반 진단 객체와 일반 `span` 객체는 복사하고, 사용자 정의 진단 인스턴스는 전달받은 인스턴스를 보관한다. 범위는 템플릿 원문에서 0부터 시작하는 UTF-16 코드 단위 오프셋이다. `start`를 포함하고 `end`를 제외한다. [진단 타입](../src/exception/types.ts)
+- `UNEXPECTED_CHARACTER`의 `span`은 표현식 구간 내에서 오류를 일으킨 문자소 전체를 가리킨다. 결합 문자가 숫자, 연산자, 공백 등에 붙어 있으면 해당 문자도 범위에 포함한다.
 - `INVALID_SOURCE_TYPE`, `INPUT_LENGTH_LIMIT_EXCEEDED`, `OUTPUT_LENGTH_LIMIT_EXCEEDED` 오류의 `issues`는 빈 배열이다. 두 길이 초과 오류는 적용된 한도를 `limit`에 담는다.
 - 함수 관련 오류는 `functionName`을 제공한다. `ZslInsufficientArgumentsError`의 `minimumArguments`와 `actualArguments`는 필요한 최소 인자 수와 실제 인자 수다. `ZslInvalidArgumentTypeError`의 `expectedType`은 필요한 인자 타입이다. [함수 오류 클래스](../src/exception/validation-error.ts)
 

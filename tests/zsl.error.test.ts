@@ -86,6 +86,28 @@ describe('ZSL errors', () => {
     >().toEqualTypeOf<'DIVISION_BY_ZERO'>()
   })
 
+  it('preserves methods and span metadata on a custom diagnostic subtype', () => {
+    class CustomIssue implements ZslIssue<'syntax'> {
+      readonly kind = 'syntax'
+      readonly message = 'Unexpected input'
+      readonly span = { start: 0, end: 1, sourceName: 'example.zsl' }
+
+      describe() {
+        return `${this.span.sourceName}: ${this.message}`
+      }
+    }
+
+    class CustomError extends ZslError<CustomIssue> {
+      override readonly code = 'CUSTOM_ERROR'
+    }
+
+    const [issue] = new CustomError('Custom error', [new CustomIssue()]).issues
+    assert(issue)
+    expect(issue.describe()).toBe('example.zsl: Unexpected input')
+  })
+
+  const nonFiniteInteger = '9'.repeat(309)
+
   // 어휘와 표현식 문법에서 거부하는 입력을 구체 오류별로 검사한다.
   // 공통 오류 메시지와 세부 진단을 구분하고, 문제가 있는 원문 범위를 확인한다.
   it.each([
@@ -125,7 +147,35 @@ describe('ZSL errors', () => {
       span: { start: 2, end: 3 },
     },
     {
-      input: '9'.repeat(309),
+      input: '14.\u0301',
+      type: ZslUnexpectedCharacterError,
+      code: 'UNEXPECTED_CHARACTER',
+      message: 'Unexpected character',
+      span: { start: 2, end: 4 },
+    },
+    {
+      input: '14.😀',
+      type: ZslMissingFractionDigitError,
+      code: 'MISSING_FRACTION_DIGIT',
+      message: 'Expected a digit after the decimal point',
+      span: { start: 2, end: 3 },
+    },
+    {
+      input: nonFiniteInteger,
+      type: ZslNonFiniteNumberLiteralError,
+      code: 'NON_FINITE_NUMBER_LITERAL',
+      message: 'Number must be finite',
+      span: { start: 0, end: 309 },
+    },
+    {
+      input: `${nonFiniteInteger}\u0301`,
+      type: ZslUnexpectedCharacterError,
+      code: 'UNEXPECTED_CHARACTER',
+      message: 'Unexpected character',
+      span: { start: 308, end: 310 },
+    },
+    {
+      input: `${nonFiniteInteger}😀`,
       type: ZslNonFiniteNumberLiteralError,
       code: 'NON_FINITE_NUMBER_LITERAL',
       message: 'Number must be finite',
