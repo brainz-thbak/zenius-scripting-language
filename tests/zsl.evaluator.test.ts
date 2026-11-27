@@ -26,6 +26,48 @@ describe('evaluateExpression', () => {
       expected: 16,
     },
     { name: 'decimal division', input: '3 / 2', expected: 1.5 },
+    {
+      name: 'number-only addition outside the safe integer range',
+      input: '9007199254740991 + 2',
+      // 두 피연산자가 모두 number라 정확한 합 9007199254740993은
+      // 표현 가능한 두 값의 중간에 있어 9007199254740992로 반올림된다.
+      expected: 9007199254740992,
+    },
+    {
+      name: 'mixed integer addition',
+      input: '1 + 9007199254740993',
+      expected: 9007199254740994n,
+    },
+    {
+      name: 'subtraction of adjacent large integers',
+      input: '9007199254740993 - 9007199254740992',
+      expected: 1n,
+    },
+    {
+      name: 'promotion of the represented number value',
+      input: '1000000000000000100.0 - 1000000000000000100',
+      expected: 28n,
+    },
+    {
+      name: 'mixed integer multiplication',
+      input: '9007199254740993 * 3',
+      expected: 27021597764222979n,
+    },
+    {
+      name: 'mixed exact integer division',
+      input: '18014398509481986 / 2',
+      expected: 9007199254740993n,
+    },
+    {
+      name: 'mixed division with a remainder',
+      input: '1 / 9007199254740993',
+      expected: 1.1102230246251565e-16,
+    },
+    {
+      name: 'arithmetic with a fractional operand',
+      input: '9007199254740993 + 1.5',
+      expected: 9007199254740994,
+    },
     { name: 'subtraction below zero', input: '2 - 5', expected: -3 },
     { name: 'whitespace between tokens', input: '1\t+\r\n2', expected: 3 },
     { name: 'grouped string literal', input: '("event")', expected: 'event' },

@@ -59,6 +59,8 @@ const snapshot = zsl.compile('값: ${42}').getAstSnapshot()
 // ]
 ```
 
+숫자 리터럴의 값은 `number | bigint`다. 소수점 없는 정수가 `Number.MAX_SAFE_INTEGER`를 초과하면 스냅샷에 `bigint`로 담긴다. 스냅샷에 `bigint`가 있으면 `JSON.stringify(snapshot)`은 `TypeError`를 던진다. JSON으로 직렬화할 때는 `JSON.stringify()`의 `replacer`로 `bigint`를 문자열로 바꿀 수 있다. [숫자 리터럴 규칙](language.md#리터럴)
+
 ## 오류와 진단
 
 `ZslError`는 `Error`를 상속한다. `ZslSyntaxError`와 `ZslValidationError`는 각각 `ZslError`를 상속한다. `instanceof`는 같은 패키지 진입점에서 가져온 오류 클래스의 상속 관계를 확인할 때 사용한다. [공통 오류 클래스](../src/exception/zsl-error.ts)

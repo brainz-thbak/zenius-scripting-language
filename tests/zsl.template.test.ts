@@ -277,11 +277,75 @@ describe('ZSL templates', () => {
     expect(expression.evaluate()).toBe('9007199254740992,9007199254740993')
   })
 
+  it('preserves a large integer with leading zeroes', () => {
+    const expression = zsl.compile('${0009007199254740993}')
+
+    expect(expression.evaluate()).toBe('9007199254740993')
+  })
+
+  it.each([
+    { source: '${0.0000001}', expected: '0.0000001' },
+    { source: '${0.0000000123456789}', expected: '0.0000000123456789' },
+    { source: '${1 / 10000000}', expected: '0.0000001' },
+    {
+      source: "${GET('event', 'value')}",
+      context: { event: { value: 0.0000001 } },
+      expected: '0.0000001',
+    },
+  ])(
+    'renders a small decimal in $source without an exponent',
+    ({ source, context, expected }) => {
+      expect(zsl.compile(source).evaluate(context)).toBe(expected)
+    },
+  )
+
   it('round-trips a small decimal evaluation result as a numeric literal', () => {
     const result = zsl.compile('${0.0000001}').evaluate()
     const source = `\${${result}}`
 
-    expect(zsl.compile(source).evaluate()).toBe(result)
+    expect(zsl.compile(source).evaluate()).toBe('0.0000001')
+  })
+
+  it('preserves numeric literal types in the AST snapshot', () => {
+    const expression = zsl.compile(
+      '${9007199254740991}${9007199254740993}${9007199254740993.0}',
+    )
+
+    expect(expression.getAstSnapshot()).toMatchObject([
+      {
+        kind: 'expression',
+        expression: { kind: 'literal', value: 9007199254740991 },
+      },
+      {
+        kind: 'expression',
+        expression: { kind: 'literal', value: 9007199254740993n },
+      },
+      {
+        kind: 'expression',
+        expression: { kind: 'literal', value: 9007199254740992 },
+      },
+    ])
+  })
+
+  it('round-trips the smallest positive number from GET', () => {
+    const expression = zsl.compile("${GET('event', 'value')}")
+    const result = expression.evaluate({ event: { value: Number.MIN_VALUE } })
+    const expected = `0.${'0'.repeat(323)}5`
+
+    expect(result).toBe(expected)
+    expect(zsl.compile(`\${${result}}`).evaluate()).toBe(expected)
+  })
+
+  it('applies the output limit to the expanded small decimal', () => {
+    const compiler = new ZSL({ maxOutputLength: 8 })
+    const expression = compiler.compile('${0.0000001}')
+
+    expect(() => expression.evaluate()).toThrow(
+      expect.objectContaining({
+        code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED',
+        limit: 8,
+      }),
+    )
   })
 
   // 한 번 컴파일한 템플릿을 여러 이벤트에 재사용한다.

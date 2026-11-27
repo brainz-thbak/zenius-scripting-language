@@ -3,6 +3,7 @@ import type {
   CallAst,
   ExpressionAst,
   LiteralValue,
+  NumericValue,
   SourceSpan,
 } from '../ast/index.js'
 import {
@@ -40,7 +41,7 @@ type PendingOperation =
   | {
       readonly kind: 'arithmeticRight'
       readonly operator: ArithmeticOperator
-      readonly left: number
+      readonly left: NumericValue
       readonly rightSpan: SourceSpan
       readonly span: SourceSpan
     }
@@ -92,7 +93,7 @@ export function evaluateExpression(
             pending.push({
               kind: 'arithmeticRight',
               operator: binary.operator,
-              left: requireNumber(value, binary.left.span),
+              left: requireNumeric(value, binary.left.span),
               rightSpan: binary.right.span,
               span: binary.span,
             })
@@ -101,12 +102,12 @@ export function evaluateExpression(
         break
       }
       case 'arithmeticRight': {
-        const right = requireNumber(value, frame.rightSpan)
-        if (frame.operator === '/' && right === 0) {
+        const right = requireNumeric(value, frame.rightSpan)
+        if (frame.operator === '/' && (right === 0 || right === 0n)) {
           throw new ZslDivisionByZeroError(frame.rightSpan)
         }
-        const result = arithmeticOperations[frame.operator](frame.left, right)
-        if (!Number.isFinite(result)) {
+        const result = evaluateArithmetic(frame.operator, frame.left, right)
+        if (!Number.isFinite(Number(result))) {
           throw new ZslNonFiniteArithmeticResultError(frame.span)
         }
         value = result
@@ -169,8 +170,37 @@ function descendToValue(
   return node.value
 }
 
-function requireNumber(value: LiteralValue, span: SourceSpan): number {
-  if (typeof value !== 'number') {
+function evaluateArithmetic(
+  operator: ArithmeticOperator,
+  left: NumericValue,
+  right: NumericValue,
+): NumericValue {
+  if (
+    (typeof left === 'bigint' || typeof right === 'bigint') &&
+    (typeof left === 'bigint' || Number.isInteger(left)) &&
+    (typeof right === 'bigint' || Number.isInteger(right))
+  ) {
+    const integerLeft = BigInt(left)
+    const integerRight = BigInt(right)
+    switch (operator) {
+      case '+':
+        return integerLeft + integerRight
+      case '-':
+        return integerLeft - integerRight
+      case '*':
+        return integerLeft * integerRight
+      case '/':
+        if (integerLeft % integerRight === 0n) {
+          return integerLeft / integerRight
+        }
+        break
+    }
+  }
+  return arithmeticOperations[operator](Number(left), Number(right))
+}
+
+function requireNumeric(value: LiteralValue, span: SourceSpan): NumericValue {
+  if (typeof value !== 'number' && typeof value !== 'bigint') {
     throw new ZslInvalidArithmeticOperandTypeError(span)
   }
   return value

@@ -4,6 +4,7 @@ export type {
   CallAst,
   ExpressionAst,
   LiteralValue,
+  NumericValue,
   SourceSpan,
   TemplateAst,
   TemplatePart,

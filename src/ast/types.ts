@@ -3,7 +3,9 @@ export interface SourceSpan {
   readonly end: number
 }
 
-export type LiteralValue = string | number | boolean | null
+export type NumericValue = number | bigint
+
+export type LiteralValue = string | NumericValue | boolean | null
 
 export type ArithmeticOperator = '+' | '-' | '*' | '/'
 

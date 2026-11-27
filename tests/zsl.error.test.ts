@@ -371,11 +371,25 @@ describe('ZSL errors', () => {
       span: { start: 6, end: 7 },
     },
     {
+      input: '1 / (9007199254740993 - 9007199254740993)',
+      type: ZslDivisionByZeroError,
+      code: 'DIVISION_BY_ZERO',
+      message: 'Division by zero',
+      span: { start: 6, end: 43 },
+    },
+    {
       input: `${'9'.repeat(308)} * 2`,
       type: ZslNonFiniteArithmeticResultError,
       code: 'NON_FINITE_ARITHMETIC_RESULT',
       message: 'Arithmetic result must be finite',
       span: { start: 2, end: 314 },
+    },
+    {
+      input: `${'9'.repeat(308)} * 2.5`,
+      type: ZslNonFiniteArithmeticResultError,
+      code: 'NON_FINITE_ARITHMETIC_RESULT',
+      message: 'Arithmetic result must be finite',
+      span: { start: 2, end: 316 },
     },
     {
       input: '1 + true',

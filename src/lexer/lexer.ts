@@ -170,7 +170,8 @@ function readString(
 }
 
 function readNumber(source: string, start: number, limit: number): Token {
-  let end = digitEnd(source, start, limit)
+  const integerEnd = digitEnd(source, start, limit)
+  let end = integerEnd
   if (end < limit && source.charAt(end) === '.') {
     const fractionStart = end + 1
     const fractionEnd = digitEnd(source, fractionStart, limit)
@@ -183,12 +184,17 @@ function readNumber(source: string, start: number, limit: number): Token {
     }
     end = fractionEnd
   }
-  const value = Number(source.slice(start, end))
+  const raw = source.slice(start, end)
+  const value = Number(raw)
   if (!Number.isFinite(value)) {
     requireGraphemeBoundary(source, start, end, limit)
     throw new ZslNonFiniteNumberLiteralError({ start, end })
   }
-  return literalToken(value, start, end)
+  return literalToken(
+    end === integerEnd && !Number.isSafeInteger(value) ? BigInt(raw) : value,
+    start,
+    end,
+  )
 }
 
 function digitEnd(source: string, start: number, limit: number): number {

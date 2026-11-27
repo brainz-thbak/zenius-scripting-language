@@ -1,4 +1,9 @@
-import type { ExpressionAst, TemplateAst, TemplatePart } from '../ast/index.js'
+import type {
+  ExpressionAst,
+  LiteralValue,
+  TemplateAst,
+  TemplatePart,
+} from '../ast/index.js'
 import { evaluateExpression } from '../evaluator/index.js'
 import {
   ZslOutputLengthLimitExceededError,
@@ -26,7 +31,7 @@ export class Expression implements ExpressionContract {
       const renderedPart =
         part.kind === 'text'
           ? part.value
-          : String(evaluateExpression(part.expression, context))
+          : renderValue(evaluateExpression(part.expression, context))
       if (
         maxOutputLength !== undefined &&
         result.length + renderedPart.length > maxOutputLength
@@ -37,6 +42,20 @@ export class Expression implements ExpressionContract {
     }
     return result
   }
+}
+
+function renderValue(value: LiteralValue): string {
+  const text = String(value)
+  if (typeof value !== 'number' || value <= 0) {
+    return text
+  }
+  const exponentOffset = text.indexOf('e-')
+  if (exponentOffset === -1) {
+    return text
+  }
+  const exponent = Number(text.slice(exponentOffset + 2))
+  const digits = text.slice(0, exponentOffset).replace('.', '')
+  return `0.${'0'.repeat(exponent - 1)}${digits}`
 }
 
 type Mutable<T> = { -readonly [Key in keyof T]: T[Key] }
