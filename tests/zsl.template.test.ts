@@ -11,6 +11,50 @@ import {
 
 const zsl = new ZSL()
 
+describe('FORMAT_NUM numeric formatting regressions', () => {
+  function formatNumber(value: number, pattern: string): string {
+    return zsl
+      .compile("${FORMAT_NUM(GET('stats', 'value'), GET('stats', 'pattern'))}")
+      .evaluate({ stats: { value, pattern } })
+  }
+
+  it.each([
+    [0.6125, '?/?', '5/8'],
+    [-0.6125, '?/?', '-5/8'],
+    [0.99999999, '#/#########', '99999999/100000000'],
+  ])(
+    'formats %s with %s using decimal fraction rounding',
+    (value, pattern, expected) => {
+      expect(formatNumber(value, pattern)).toBe(expected)
+    },
+  )
+
+  it('formats the same large integer as a fraction for number and bigint', () => {
+    const fromBigInt = zsl.compile(
+      "${FORMAT_NUM(9007199254740993 - 9007197107257345, '?/?')}",
+    )
+
+    expect(fromBigInt.evaluate()).toBe('2147483648/1')
+    expect(formatNumber(2147483648, '?/?')).toBe('2147483648/1')
+  })
+
+  it.each([
+    ['number', '1080'],
+    ['bigint', '9007199254742073 - 9007199254740993'],
+  ])(
+    'formats 1080 as a mixed fraction for %s after scaling',
+    (_type, value) => {
+      const mixedFraction = zsl.compile(`\${FORMAT_NUM(${value}, '#, ?/?')}`)
+
+      expect(mixedFraction.evaluate()).toBe('1 1/9')
+    },
+  )
+
+  it('accepts the whole-percent pattern', () => {
+    expect(formatNumber(1234, '0%')).toBe('123400%')
+  })
+})
+
 describe('ZSL compile input and length limits', () => {
   it('exposes configured input and output limits on the instance', () => {
     const compiler = new ZSL({ maxInputLength: 7, maxOutputLength: 4 })
