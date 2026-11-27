@@ -21,7 +21,7 @@ ZSL의 실행 대상은 웹 브라우저와 Node.js다. 두 환경에 같은 공
 
 ## 컴파일
 
-`compile(source)`는 템플릿에 포함된 표현식을 파싱하고 검사해 `Expression`을 반환한다. 등록되지 않은 함수를 호출하는 등 문법에 어긋나면 `ZslSyntaxError` 계열의 오류를 던진다. 파싱한 호출의 인자가 부족하면 `ZslInsufficientArgumentsError`를 던진다. [컴파일 메서드](../src/zsl/zsl.ts)
+`compile(source)`는 템플릿에 포함된 표현식을 파싱하고 검사해 `Expression`을 반환한다. 등록되지 않은 함수를 호출하는 등 문법에 어긋나면 `ZslSyntaxError` 계열의 오류를 던진다. 파싱한 호출의 인자 수가 함수의 조건을 충족하지 않으면 `ZslInsufficientArgumentsError` 또는 `ZslInvalidArgumentCountError`를 던진다. [컴파일 메서드](../src/zsl/zsl.ts)
 
 `compile()`은 입력이 문자열이면 원문 길이를 검사한 뒤 파싱한다. 문자열 이외의 값에는 `INVALID_SOURCE_TYPE`을 던진다. 원문이 `maxInputLength`를 초과하면 `INPUT_LENGTH_LIMIT_EXCEEDED`를 던진다.
 
@@ -71,6 +71,6 @@ const snapshot = zsl.compile('값: ${42}').getAstSnapshot()
 - `issues`는 진단 배열이다. 각 `ZslIssue`는 진단의 `kind`, 상세 `message`, 소스 `span`을 담는다. 각 오류는 진단 배열을 복사한다. 일반 진단 객체와 일반 `span` 객체는 복사하고, 사용자 정의 진단 인스턴스는 전달받은 인스턴스를 보관한다. 범위는 템플릿 원문에서 0부터 시작하는 UTF-16 코드 단위 오프셋이다. `start`를 포함하고 `end`를 제외한다. [진단 타입](../src/exception/types.ts)
 - `UNEXPECTED_CHARACTER`의 `span`은 표현식 구간 내에서 오류를 일으킨 문자소 전체를 가리킨다. 결합 문자가 숫자, 연산자, 공백 등에 붙어 있으면 해당 문자도 범위에 포함한다.
 - `INVALID_SOURCE_TYPE`, `INPUT_LENGTH_LIMIT_EXCEEDED`, `OUTPUT_LENGTH_LIMIT_EXCEEDED` 오류의 `issues`는 빈 배열이다. 두 길이 초과 오류는 적용된 한도를 `limit`에 담는다.
-- 함수 관련 오류는 `functionName`을 제공한다. `ZslInsufficientArgumentsError`의 `minimumArguments`와 `actualArguments`는 필요한 최소 인자 수와 실제 인자 수다. `ZslInvalidArgumentTypeError`의 `expectedType`은 필요한 인자 타입이다. [함수 오류 클래스](../src/exception/validation-error.ts)
+- 인자 수와 타입 오류는 `functionName`을 제공한다. 인자 수 오류에는 `actualArguments`와 함께 `minimumArguments` 또는 `expectedArguments`가 있다. 인자 타입 오류의 `expectedType`은 필요한 인자 타입이다. [오류 클래스와 코드](api-reference/error-codes.md)
 
 지원하지 않는 표현식 노드가 AST에 있으면 `getAstSnapshot()`은 `ZslUnsupportedExpressionNodeError`를 던진다. 오류 코드는 `UNSUPPORTED_EXPRESSION_NODE`이며 `issues`는 빈 배열이다. [AST 오류 클래스](../src/exception/unsupported-expression-node-error.ts)

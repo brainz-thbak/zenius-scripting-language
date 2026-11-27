@@ -150,7 +150,7 @@ zsl.compile('값 ${1')
 new ZslValidationError(issues: readonly ZslIssue<'validation'>[])
 ```
 
-`issues`에는 직접 생성한 오류에 담을 검사·평가 진단을 전달한다. 구체 오류의 생성자는 `span: ZslIssue['span']`을 마지막 인자로 받고, 이 범위에 대한 검사·평가 진단 하나를 생성한다. 함수 관련 오류는 함수 이름과 필요한 인자 정보를 읽기 전용 속성으로 제공한다.
+`issues`에는 직접 생성한 오류에 담을 검사·평가 진단을 전달한다. 구체 오류의 생성자는 `span: ZslIssue['span']`을 마지막 인자로 받고, 이 범위에 대한 검사·평가 진단 하나를 생성한다. 인자 수와 인자 타입 오류는 함수 이름과 필요한 인자 정보를 읽기 전용 속성으로 제공한다.
 
 ### ZslValidationError
 
@@ -176,15 +176,47 @@ zsl.compile('${GET()}')
 
 ### ZslInvalidArgumentTypeError
 
-`INVALID_ARGUMENT_TYPE`. 평가 중 `GET` 또는 `EXIST`의 인자가 문자열 이외의 값으로 평가됐다.
+`INVALID_ARGUMENT_TYPE`. 평가한 인자가 내장 함수가 요구하는 타입에 해당하지 않는다.
 
 생성자는 아래 속성이 있는 객체를 `span` 앞에 받는다.
 
 - `functionName: string`은 함수 이름이다.
-- `expectedType: 'string' | 'number' | 'boolean'`은 필요한 인자 타입이다.
+- `expectedType: 'string' | 'number' | 'boolean'`은 필요한 인자 타입이다. `FORMAT_NUM`에서 `'number'`는 유한한 `number`와 `bigint`를 포함한다.
 
 ```ts
 zsl.compile("${GET('event', false)}").evaluate()
+```
+
+### ZslInvalidArgumentCountError
+
+`INVALID_ARGUMENT_COUNT`. 호출의 인자 수가 함수가 요구하는 고정 인자 수와 다르다. 진단 범위는 호출 전체다.
+
+생성자는 아래 속성이 있는 객체를 `span` 앞에 받는다.
+
+- `functionName: string`은 함수 이름이다.
+- `expectedArguments: number`는 필요한 인자 수다.
+- `actualArguments: number`는 실제 인자 수다.
+
+```ts
+zsl.compile('${FORMAT_NUM(1)}')
+```
+
+### ZslInvalidNumberFormatError
+
+`INVALID_NUMBER_FORMAT`. `FORMAT_NUM`의 서식이 [허용 범위](../adr/0012-format-num-scope.md#허용-서식)를 벗어났다. 생성자는 서식 인자의 `span`을 받는다.
+
+```ts
+zsl.compile("${FORMAT_NUM(42670, 'MM/DD/YY')}").evaluate()
+```
+
+### ZslUnformattableNumberError
+
+`UNFORMATTABLE_NUMBER`. 유효한 서식으로 `FORMAT_NUM`의 숫자를 표시할 수 없다. 생성자는 숫자 인자의 `span`을 받는다.
+
+```ts
+zsl.compile("${FORMAT_NUM(GET('stats', 'value'), '0')}").evaluate({
+  stats: { value: 1e300 },
+})
 ```
 
 ### ZslInvalidFunctionResultError
