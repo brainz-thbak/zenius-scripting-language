@@ -247,6 +247,27 @@ describe('parseExpression', () => {
     })
   })
 
+  it.each([
+    '*',
+    '/',
+    '+',
+    '-',
+    '<',
+    '<=',
+    '>',
+    '>=',
+    '==',
+    '!=',
+    '&&',
+    '||',
+    '??',
+  ])('parses the %s binary operator without spaces', (operator) => {
+    expect(parseExpression(`1${operator}2`)).toMatchObject({
+      kind: 'binary',
+      operator,
+    })
+  })
+
   it('groups arithmetic, ordering, equality and AND in precedence order', () => {
     expect(parseExpression('1 + 2 >= 3 == true && true')).toMatchObject({
       kind: 'binary',

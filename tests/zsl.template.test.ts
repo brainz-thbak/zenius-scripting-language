@@ -904,6 +904,12 @@ describe('ZSL templates', () => {
       message: "템플릿 표현식을 닫는 '}'가 없습니다.",
       span: { start: 0, end: 6 },
     },
+    {
+      source: '${"\\q}',
+      code: 'UNTERMINATED_TEMPLATE_EXPRESSION',
+      message: "템플릿 표현식을 닫는 '}'가 없습니다.",
+      span: { start: 0, end: 6 },
+    },
   ])('reports $code for "$source"', ({ source, code, message, span }) => {
     const compile = () => zsl.compile(source)
     expect(compile).toThrow(ZslSyntaxError)

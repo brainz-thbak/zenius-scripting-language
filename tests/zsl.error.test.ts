@@ -190,6 +190,20 @@ describe('ZSL errors', () => {
       span: { start: 0, end: 3 },
     },
     {
+      input: 'unknown@',
+      type: ZslUnexpectedCharacterError,
+      code: 'UNEXPECTED_CHARACTER',
+      message: '허용되지 않는 문자입니다.',
+      span: { start: 7, end: 8 },
+    },
+    {
+      input: 'unknown(@',
+      type: ZslUnknownFunctionError,
+      code: 'UNKNOWN_FUNCTION',
+      message: "등록되지 않은 함수 'unknown'입니다.",
+      span: { start: 0, end: 7 },
+    },
+    {
       input: '1 +',
       type: ZslMissingOperandError,
       code: 'MISSING_OPERAND',
@@ -224,7 +238,14 @@ describe('ZSL errors', () => {
       message: '표현식 뒤에 예상하지 못한 토큰이 있습니다.',
       span: { start: 2, end: 3 },
     },
-  ])('reports $code while parsing', ({ input, type, code, message, span }) => {
+    {
+      input: 'GET(1))',
+      type: ZslTrailingTokenError,
+      code: 'TRAILING_TOKEN',
+      message: '표현식 뒤에 예상하지 못한 토큰이 있습니다.',
+      span: { start: 6, end: 7 },
+    },
+  ])('reports $code for $input', ({ input, type, code, message, span }) => {
     assert.throws(
       () => parseExpression(input),
       (error: unknown) => {
