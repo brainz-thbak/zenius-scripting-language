@@ -30,3 +30,18 @@ Node.js 24 이상과 npm이 필요하다. `npm ci`로 의존성을 설치한다.
 | `npm run lint`         | Biome으로 린트 규칙을 검사한다.                                                        |
 | `npm run format`       | Biome으로 포맷을 적용한다.                                                             |
 | `npm run format:check` | 파일을 수정하지 않고 포맷을 검사한다.                                                  |
+
+## 플레이그라운드와 문서 사이트
+
+루트에서 ZSL을 빌드한 뒤 웹 사이트의 의존성을 설치하고 개발 서버를 실행한다.
+
+```sh
+npm ci
+npm run build
+npm ci --prefix website
+npm --prefix website run dev
+```
+
+플레이그라운드에서 템플릿과 JSON 컨텍스트를 편집하고 평가 결과를 확인한다. 사이트 설정과 React 코드는 `website/`에 있다. 문서 페이지는 `docs/`의 Markdown을 읽는다. 엔진 코드를 수정하면 루트에서 `npm run build`를 다시 실행한다.
+
+GitHub Pages의 배포 소스는 저장소 **Settings → Pages → Source**에서 **GitHub Actions**를 선택한다. **Actions**에서 **Deploy the ZSL website** 워크플로를 실행한다. 워크플로는 GitHub Pages의 URL 경로에 맞춰 `website/build`에 정적 사이트를 생성하고 배포한다.

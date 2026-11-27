@@ -2,6 +2,8 @@
 
 패키지 `@zenius/zsl`은 `ZSL`과 오류 클래스를 내보낸다. `Expression`, `ZslIssue`, `ZslOptions`는 타입으로 가져올 수 있다. [패키지 진입점](../src/zsl/index.ts)
 
+각 공개 항목의 시그니처, 매개변수, 반환값과 예제는 [API 레퍼런스](api-reference/index.md)에서 확인한다.
+
 ## 실행 환경
 
 ZSL의 실행 대상은 웹 브라우저와 Node.js다. 두 환경에 같은 공개 API와 표현식 평가 규칙을 적용한다.

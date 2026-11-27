@@ -1,0 +1,61 @@
+name: Deploy the ZSL website
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website/package-lock.json
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v6
+      - name: Build the ZSL package
+        run: |
+          npm ci
+          npm run build
+      - name: Build the website
+        env:
+          ZSL_SITE_URL: ${{ steps.pages.outputs.origin }}
+          ZSL_BASE_URL: ${{ steps.pages.outputs.base_path }}
+        run: |
+          npm ci --prefix website
+          npm --prefix website run typecheck
+          npm --prefix website run build
+      - name: Upload the website
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: website/build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
