@@ -136,6 +136,64 @@ describe('parseExpression', () => {
     })
   })
 
+  it('groups binary operators and nested conditionals within a call argument', () => {
+    expect(
+      parseExpression('GET(1 + 2 * 3 ? EXIST() : 4 ? 5 : 6, 7)'),
+    ).toMatchObject({
+      kind: 'call',
+      name: 'GET',
+      args: [
+        {
+          kind: 'conditional',
+          condition: {
+            kind: 'binary',
+            operator: '+',
+            left: { kind: 'literal', value: 1 },
+            right: { kind: 'binary', operator: '*' },
+          },
+          whenTrue: { kind: 'call', name: 'EXIST', args: [] },
+          whenFalse: {
+            kind: 'conditional',
+            condition: { kind: 'literal', value: 4 },
+            whenTrue: { kind: 'literal', value: 5 },
+            whenFalse: { kind: 'literal', value: 6 },
+          },
+        },
+        { kind: 'literal', value: 7 },
+      ],
+    })
+  })
+
+  it.each([
+    {
+      input: 'GET(1 + 2 3)',
+      code: 'EXPECTED_ARGUMENT_DELIMITER',
+      span: { start: 10, end: 11 },
+    },
+    {
+      input: 'GET(1 + 2,)',
+      code: 'MISSING_OPERAND',
+      span: { start: 10, end: 11 },
+    },
+    {
+      input: 'GET(1 + 2 ? 3, 4)',
+      code: 'MISSING_CONDITIONAL_COLON',
+      span: { start: 13, end: 14 },
+    },
+    {
+      input: 'GET((1 + 2, 3), 4)',
+      code: 'MISSING_GROUP_CLOSING_PAREN',
+      span: { start: 10, end: 11 },
+    },
+  ])('reports $code for $input', ({ input, code, span }) => {
+    expect(() => parseExpression(input)).toThrow(
+      expect.objectContaining({
+        code,
+        issues: [expect.objectContaining({ kind: 'syntax', span })],
+      }),
+    )
+  })
+
   it.each([
     { name: 'unknown', input: 'unknown()' },
     { name: 'get', input: "get('event', 'severity')" },

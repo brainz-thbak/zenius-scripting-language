@@ -134,17 +134,16 @@ export function parseExpression(
           }
           continue consumeToken
         case 'call':
-          if (token.kind === 'comma') {
-            frame.args.push(expression)
-            pending.push(frame)
-            expression = undefined
-            continue consumeToken
-          }
-          if (token.kind !== 'rightParen') {
+          if (token.kind !== 'comma' && token.kind !== 'rightParen') {
             throw new ZslExpectedArgumentDelimiterError(token.span)
           }
           frame.args.push(expression)
-          expression = finishCall(frame, token.span.end)
+          if (token.kind === 'comma') {
+            pending.push(frame)
+            expression = undefined
+          } else {
+            expression = finishCall(frame, token.span.end)
+          }
           continue consumeToken
         case 'awaitingColon':
           if (token.kind !== 'colon') {
@@ -204,12 +203,12 @@ function finishCall(call: PendingCall, end: number): CallAst {
 function shouldReduce(frame: PendingExpression, token: Token): boolean {
   switch (token.kind) {
     case 'operator':
+    case 'question':
       return (
         frame.kind === 'binary' &&
-        precedence[frame.operator] >= precedence[token.operator]
+        (token.kind === 'question' ||
+          precedence[frame.operator] >= precedence[token.operator])
       )
-    case 'question':
-      return frame.kind === 'binary'
     default:
       return true
   }
