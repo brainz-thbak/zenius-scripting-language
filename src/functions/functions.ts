@@ -1,11 +1,13 @@
 import type { CallAst, LiteralValue, SourceSpan } from '../ast/index.js'
 import {
   ZslInsufficientArgumentsError,
+  ZslInvalidArgumentCountError,
   ZslInvalidArgumentTypeError,
   ZslInvalidFunctionResultError,
   ZslUnknownFunctionError,
 } from '../exception/index.js'
 import type { ZslContext } from '../expression/index.js'
+import { formatNum } from './format-num.js'
 
 export interface EvaluatedArgument {
   readonly value: LiteralValue
@@ -18,12 +20,19 @@ export type EvaluateFunction = (
   span: SourceSpan,
 ) => LiteralValue
 
-export const builtinFunctions: ReadonlyMap<
-  string,
-  { readonly minimumArguments: number; readonly evaluate: EvaluateFunction }
-> = new Map([
-  ['GET', { minimumArguments: 2, evaluate: get }],
-  ['EXIST', { minimumArguments: 2, evaluate: exist }],
+type ArgumentCount =
+  | { readonly kind: 'minimum'; readonly count: number }
+  | { readonly kind: 'exact'; readonly count: number }
+
+interface BuiltinFunction {
+  readonly arity: ArgumentCount
+  readonly evaluate: EvaluateFunction
+}
+
+export const builtinFunctions: ReadonlyMap<string, BuiltinFunction> = new Map([
+  ['GET', { arity: { kind: 'minimum', count: 2 }, evaluate: get }],
+  ['EXIST', { arity: { kind: 'minimum', count: 2 }, evaluate: exist }],
+  ['FORMAT_NUM', { arity: { kind: 'exact', count: 2 }, evaluate: formatNum }],
 ])
 
 export function resolveCall(call: CallAst): EvaluateFunction {
@@ -31,11 +40,22 @@ export function resolveCall(call: CallAst): EvaluateFunction {
   if (fn === undefined) {
     throw new ZslUnknownFunctionError(call.name, call.span)
   }
-  if (call.args.length < fn.minimumArguments) {
+  const { arity } = fn
+  if (arity.kind === 'exact' && call.args.length !== arity.count) {
+    throw new ZslInvalidArgumentCountError(
+      {
+        functionName: call.name,
+        expectedArguments: arity.count,
+        actualArguments: call.args.length,
+      },
+      call.span,
+    )
+  }
+  if (arity.kind === 'minimum' && call.args.length < arity.count) {
     throw new ZslInsufficientArgumentsError(
       {
         functionName: call.name,
-        minimumArguments: fn.minimumArguments,
+        minimumArguments: arity.count,
         actualArguments: call.args.length,
       },
       call.span,

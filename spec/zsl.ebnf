@@ -23,7 +23,7 @@ sum = product, { spacing, ( "+" | "-" ), spacing, product } ;
 product = primary, { spacing, ( "*" | "/" ), spacing, primary } ;
 primary = literal | call | "(", spacing, expression, spacing, ")" ;
 call = builtin function, spacing, "(", spacing, [ arguments, spacing ], ")" ;
-builtin function = "GET" | "EXIST" ;
+builtin function = "GET" | "EXIST" | "FORMAT_NUM" ;
 arguments = expression, { spacing, ",", spacing, expression } ;
 literal = number | string | boolean | null ;
 

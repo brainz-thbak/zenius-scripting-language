@@ -49,6 +49,68 @@ export class ZslInsufficientArgumentsError extends ZslValidationError {
   }
 }
 
+export class ZslInvalidArgumentCountError extends ZslValidationError {
+  override readonly name = 'ZslInvalidArgumentCountError'
+  override readonly code = 'INVALID_ARGUMENT_COUNT'
+  readonly functionName: string
+  readonly expectedArguments: number
+  readonly actualArguments: number
+
+  constructor(
+    {
+      functionName,
+      expectedArguments,
+      actualArguments,
+    }: {
+      functionName: string
+      expectedArguments: number
+      actualArguments: number
+    },
+    span: SourceSpan,
+  ) {
+    super([
+      {
+        kind: 'validation',
+        message: `'${functionName}' 함수에는 인자가 정확히 ${expectedArguments}개 필요합니다.`,
+        span,
+      },
+    ])
+    this.functionName = functionName
+    this.expectedArguments = expectedArguments
+    this.actualArguments = actualArguments
+  }
+}
+
+export class ZslInvalidNumberFormatError extends ZslValidationError {
+  override readonly name = 'ZslInvalidNumberFormatError'
+  override readonly code = 'INVALID_NUMBER_FORMAT'
+
+  constructor(span: SourceSpan) {
+    super([
+      {
+        kind: 'validation',
+        message: 'FORMAT_NUM에서 사용할 수 없는 숫자 서식입니다.',
+        span,
+      },
+    ])
+  }
+}
+
+export class ZslUnformattableNumberError extends ZslValidationError {
+  override readonly name = 'ZslUnformattableNumberError'
+  override readonly code = 'UNFORMATTABLE_NUMBER'
+
+  constructor(span: SourceSpan) {
+    super([
+      {
+        kind: 'validation',
+        message: 'FORMAT_NUM의 서식으로 이 숫자를 표시할 수 없습니다.',
+        span,
+      },
+    ])
+  }
+}
+
 export class ZslInvalidArgumentTypeError extends ZslValidationError {
   override readonly name = 'ZslInvalidArgumentTypeError'
   override readonly code = 'INVALID_ARGUMENT_TYPE'

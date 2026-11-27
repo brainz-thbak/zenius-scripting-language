@@ -25,13 +25,16 @@ export { ZslUnsupportedExpressionNodeError } from './unsupported-expression-node
 export {
   ZslDivisionByZeroError,
   ZslInsufficientArgumentsError,
+  ZslInvalidArgumentCountError,
   ZslInvalidArgumentTypeError,
   ZslInvalidArithmeticOperandTypeError,
   ZslInvalidComparisonOperandTypeError,
   ZslInvalidConditionTypeError,
   ZslInvalidFunctionResultError,
   ZslInvalidLogicalOperandTypeError,
+  ZslInvalidNumberFormatError,
   ZslNonFiniteArithmeticResultError,
+  ZslUnformattableNumberError,
   ZslValidationError,
 } from './validation-error.js'
 export { ZslError } from './zsl-error.js'
