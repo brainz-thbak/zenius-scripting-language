@@ -26,6 +26,7 @@ export {
   ZslInsufficientArgumentsError,
   ZslInvalidArgumentTypeError,
   ZslInvalidArithmeticOperandTypeError,
+  ZslInvalidComparisonOperandTypeError,
   ZslInvalidConditionTypeError,
   ZslInvalidFunctionResultError,
   ZslInvalidLogicalOperandTypeError,

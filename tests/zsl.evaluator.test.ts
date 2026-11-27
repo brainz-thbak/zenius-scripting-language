@@ -168,6 +168,42 @@ describe('evaluateExpression', () => {
     expect(evaluateExpression(parseExpression(input))).toBe(expected)
   })
 
+  it.each([
+    { input: '1 + 2 >= 3 == true && true', expected: true },
+    { input: "'5' == 5", expected: false },
+    { input: "'5' != 5", expected: true },
+    { input: "'5' == '5'", expected: true },
+    { input: "'5' == '6'", expected: false },
+    { input: '1 != 1', expected: false },
+    { input: '1 != 2', expected: true },
+    { input: 'true == 1', expected: false },
+    { input: 'true == false', expected: false },
+    { input: 'null != 0', expected: true },
+    { input: '1 < 2', expected: true },
+    { input: '2 < 2', expected: false },
+    { input: '2 < 1', expected: false },
+    { input: '1 <= 2', expected: true },
+    { input: '2 <= 2', expected: true },
+    { input: '3 <= 2', expected: false },
+    { input: '3 > 2', expected: true },
+    { input: '2 > 2', expected: false },
+    { input: '2 > 3', expected: false },
+    { input: '3 >= 2', expected: true },
+    { input: '2 >= 2', expected: true },
+    { input: '2 >= 3', expected: false },
+    { input: '9007199254740992 == 9007199254740992.0', expected: true },
+    { input: '9007199254740992 != 9007199254740992.0', expected: false },
+    { input: '9007199254740993 == 9007199254740992.0', expected: false },
+    { input: '9007199254740993 > 9007199254740992.0', expected: true },
+    { input: '9007199254740992.0 < 9007199254740993', expected: true },
+    { input: '1000000000000000100.0 > 1000000000000000100', expected: true },
+    { input: '9007199254740993 - 9007199254740992 < 1.5', expected: true },
+    { input: "GET('event', 'severity') == null", expected: true },
+    { input: "(GET('event', 'severity') ?? 0) >= 5", expected: false },
+  ])('evaluates comparison $input', ({ input, expected }) => {
+    expect(evaluateExpression(parseExpression(input))).toBe(expected)
+  })
+
   // 왼쪽으로 깊어지는 덧셈 AST를 평가해 전체 연산의 합을 확인한다.
   // 호출 스택이 깊어지기 쉬운 구조에서 20,000개 연산을 끝까지 처리해야 한다.
   it('evaluates 20,000 left-associative additions', () => {
@@ -199,6 +235,12 @@ describe('evaluateExpression', () => {
     { input: 'null ?? (1 / 0)', span: { start: 13, end: 14 } },
     { input: 'true + 1', span: { start: 0, end: 4 } },
     { input: '1 + null', span: { start: 4, end: 8 } },
+    {
+      input: "GET('event', 'severity') >= 5",
+      span: { start: 0, end: 24 },
+    },
+    { input: "1 < ('5')", span: { start: 4, end: 9 } },
+    { input: 'true > 0', span: { start: 0, end: 4 } },
     { input: '1 / (2 - 2)', span: { start: 4, end: 11 } },
     {
       input: overflowingProduct,

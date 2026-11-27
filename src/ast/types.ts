@@ -9,7 +9,17 @@ export type LiteralValue = string | NumericValue | boolean | null
 
 export type ArithmeticOperator = '+' | '-' | '*' | '/'
 
-export type BinaryOperator = ArithmeticOperator | '&&' | '||' | '??'
+export type EqualityOperator = '==' | '!='
+
+export type OrderingOperator = '<' | '<=' | '>' | '>='
+
+export type BinaryOperator =
+  | ArithmeticOperator
+  | EqualityOperator
+  | OrderingOperator
+  | '&&'
+  | '||'
+  | '??'
 
 interface LiteralAst {
   readonly kind: 'literal'

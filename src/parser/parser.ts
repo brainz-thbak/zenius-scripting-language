@@ -18,10 +18,16 @@ const precedence: Readonly<Record<BinaryOperator, number>> = {
   '??': 1,
   '||': 2,
   '&&': 3,
-  '+': 4,
-  '-': 4,
-  '*': 5,
-  '/': 5,
+  '==': 4,
+  '!=': 4,
+  '<': 5,
+  '<=': 5,
+  '>': 5,
+  '>=': 5,
+  '+': 6,
+  '-': 6,
+  '*': 7,
+  '/': 7,
 }
 
 interface PendingCall {

@@ -11,6 +11,7 @@ import {
   ZslInsufficientArgumentsError,
   ZslInvalidArgumentTypeError,
   ZslInvalidArithmeticOperandTypeError,
+  ZslInvalidComparisonOperandTypeError,
   ZslInvalidConditionTypeError,
   ZslInvalidFunctionResultError,
   ZslInvalidLogicalOperandTypeError,
@@ -396,6 +397,20 @@ describe('ZSL errors', () => {
       type: ZslInvalidArithmeticOperandTypeError,
       code: 'INVALID_ARITHMETIC_OPERAND_TYPE',
       message: '산술 연산의 피연산자는 숫자여야 합니다.',
+      span: { start: 6, end: 10 },
+    },
+    {
+      input: 'true > (1 / 0)',
+      type: ZslInvalidComparisonOperandTypeError,
+      code: 'INVALID_COMPARISON_OPERAND_TYPE',
+      message: '크기 비교의 피연산자는 숫자여야 합니다.',
+      span: { start: 2, end: 6 },
+    },
+    {
+      input: '1 < null',
+      type: ZslInvalidComparisonOperandTypeError,
+      code: 'INVALID_COMPARISON_OPERAND_TYPE',
+      message: '크기 비교의 피연산자는 숫자여야 합니다.',
       span: { start: 6, end: 10 },
     },
     {

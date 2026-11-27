@@ -1,17 +1,21 @@
 import type {
   ArithmeticOperator,
   CallAst,
+  EqualityOperator,
   ExpressionAst,
   LiteralValue,
   NumericValue,
+  OrderingOperator,
   SourceSpan,
 } from '../ast/index.js'
 import {
   ZslDivisionByZeroError,
   ZslInvalidArithmeticOperandTypeError,
+  ZslInvalidComparisonOperandTypeError,
   ZslInvalidConditionTypeError,
   ZslInvalidLogicalOperandTypeError,
   ZslNonFiniteArithmeticResultError,
+  type ZslValidationError,
 } from '../exception/index.js'
 import type { ZslContext } from '../expression/index.js'
 import {
@@ -29,6 +33,15 @@ const arithmeticOperations: Readonly<
   '/': (left, right) => left / right,
 }
 
+const orderingOperations: Readonly<
+  Record<OrderingOperator, (left: NumericValue, right: NumericValue) => boolean>
+> = {
+  '<': (left, right) => left < right,
+  '<=': (left, right) => left <= right,
+  '>': (left, right) => left > right,
+  '>=': (left, right) => left >= right,
+}
+
 type PendingOperation =
   | {
       readonly kind: 'condition'
@@ -44,6 +57,17 @@ type PendingOperation =
       readonly left: NumericValue
       readonly rightSpan: SourceSpan
       readonly span: SourceSpan
+    }
+  | {
+      readonly kind: 'orderingRight'
+      readonly operator: OrderingOperator
+      readonly left: NumericValue
+      readonly rightSpan: SourceSpan
+    }
+  | {
+      readonly kind: 'equalityRight'
+      readonly operator: EqualityOperator
+      readonly left: LiteralValue
     }
   | { readonly kind: 'logicalRight'; readonly span: SourceSpan }
   | {
@@ -89,6 +113,29 @@ export function evaluateExpression(
             pending.push({ kind: 'logicalRight', span: binary.right.span })
             break
           }
+          case '<':
+          case '<=':
+          case '>':
+          case '>=':
+            pending.push({
+              kind: 'orderingRight',
+              operator: binary.operator,
+              left: requireNumeric(
+                value,
+                binary.left.span,
+                ZslInvalidComparisonOperandTypeError,
+              ),
+              rightSpan: binary.right.span,
+            })
+            break
+          case '==':
+          case '!=':
+            pending.push({
+              kind: 'equalityRight',
+              operator: binary.operator,
+              left: value,
+            })
+            break
           default:
             pending.push({
               kind: 'arithmeticRight',
@@ -111,6 +158,20 @@ export function evaluateExpression(
           throw new ZslNonFiniteArithmeticResultError(frame.span)
         }
         value = result
+        break
+      }
+      case 'orderingRight': {
+        const right = requireNumeric(
+          value,
+          frame.rightSpan,
+          ZslInvalidComparisonOperandTypeError,
+        )
+        value = orderingOperations[frame.operator](frame.left, right)
+        break
+      }
+      case 'equalityRight': {
+        const equal = valuesEqual(frame.left, value)
+        value = frame.operator === '==' ? equal : !equal
         break
       }
       case 'logicalRight':
@@ -199,9 +260,25 @@ function evaluateArithmetic(
   return arithmeticOperations[operator](Number(left), Number(right))
 }
 
-function requireNumeric(value: LiteralValue, span: SourceSpan): NumericValue {
+function valuesEqual(left: LiteralValue, right: LiteralValue): boolean {
+  if (typeof left === 'number' && typeof right === 'bigint') {
+    return Number.isInteger(left) && BigInt(left) === right
+  }
+  if (typeof left === 'bigint' && typeof right === 'number') {
+    return Number.isInteger(right) && left === BigInt(right)
+  }
+  return left === right
+}
+
+function requireNumeric(
+  value: LiteralValue,
+  span: SourceSpan,
+  OperandTypeError: new (
+    span: SourceSpan,
+  ) => ZslValidationError = ZslInvalidArithmeticOperandTypeError,
+): NumericValue {
   if (typeof value !== 'number' && typeof value !== 'bigint') {
-    throw new ZslInvalidArithmeticOperandTypeError(span)
+    throw new OperandTypeError(span)
   }
   return value
 }

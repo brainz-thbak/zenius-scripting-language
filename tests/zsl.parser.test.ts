@@ -124,6 +124,55 @@ describe('parseExpression', () => {
     })
   })
 
+  it('groups arithmetic, ordering, equality and AND in precedence order', () => {
+    expect(parseExpression('1 + 2 >= 3 == true && true')).toMatchObject({
+      kind: 'binary',
+      operator: '&&',
+      left: {
+        kind: 'binary',
+        operator: '==',
+        left: {
+          kind: 'binary',
+          operator: '>=',
+          left: {
+            kind: 'binary',
+            operator: '+',
+            left: { kind: 'literal', value: 1 },
+            right: { kind: 'literal', value: 2 },
+          },
+          right: { kind: 'literal', value: 3 },
+        },
+        right: { kind: 'literal', value: true },
+      },
+      right: { kind: 'literal', value: true },
+    })
+  })
+
+  it('groups higher-precedence operators to the right of lower-precedence ones', () => {
+    expect(parseExpression('true && true == 3 <= 1 + 2')).toMatchObject({
+      operator: '&&',
+      right: {
+        operator: '==',
+        right: { operator: '<=', right: { operator: '+' } },
+      },
+    })
+  })
+
+  it.each([
+    { input: '1<2<=3', inner: '<', outer: '<=' },
+    { input: '1==1!=false', inner: '==', outer: '!=' },
+  ])(
+    'groups comparisons from the left in $input',
+    ({ input, inner, outer }) => {
+      expect(parseExpression(input)).toMatchObject({
+        kind: 'binary',
+        operator: outer,
+        left: { kind: 'binary', operator: inner },
+        right: { kind: 'literal' },
+      })
+    },
+  )
+
   // 같은 연산자가 반복되면 왼쪽 두 항을 먼저 묶어 바깥 노드의 왼쪽에 둔다.
   // &&, ||, ??가 각각 이 결합 규칙을 따르는지 AST 모양으로 확인한다.
   it.each([
@@ -188,6 +237,11 @@ describe('parseExpression', () => {
     },
     { name: 'unclosed group', input: '(1 + 2', span: { start: 6, end: 6 } },
     { name: 'missing operand', input: '1 +', span: { start: 3, end: 3 } },
+    {
+      name: 'missing comparison operand',
+      input: '1 >=',
+      span: { start: 4, end: 4 },
+    },
     { name: 'empty group', input: '()', span: { start: 1, end: 2 } },
     {
       name: 'operator in place of an operand',

@@ -16,7 +16,9 @@ conditional = null coalescing, [ spacing, "?", spacing, conditional, spacing, ":
 (* 같은 우선순위의 이항 연산이 이어지면 왼쪽부터 묶는다. *)
 null coalescing = logical or, { spacing, "??", spacing, logical or } ;
 logical or = logical and, { spacing, "||", spacing, logical and } ;
-logical and = sum, { spacing, "&&", spacing, sum } ;
+logical and = equality, { spacing, "&&", spacing, equality } ;
+equality = ordering, { spacing, ( "==" | "!=" ), spacing, ordering } ;
+ordering = sum, { spacing, ( "<" | "<=" | ">" | ">=" ), spacing, sum } ;
 sum = product, { spacing, ( "+" | "-" ), spacing, product } ;
 product = primary, { spacing, ( "*" | "/" ), spacing, primary } ;
 primary = literal | call | "(", spacing, expression, spacing, ")" ;

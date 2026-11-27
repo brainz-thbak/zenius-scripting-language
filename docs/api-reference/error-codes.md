@@ -229,6 +229,14 @@ zsl.compile('${' + '9'.repeat(308) + ' * 2}').evaluate()
 zsl.compile('${1 + true}').evaluate()
 ```
 
+### ZslInvalidComparisonOperandTypeError
+
+`INVALID_COMPARISON_OPERAND_TYPE`. 크기 비교에 숫자 이외의 값이 나왔다. 진단 범위는 해당 피연산자다.
+
+```ts
+zsl.compile('${1 < null}').evaluate()
+```
+
 ### ZslInvalidLogicalOperandTypeError
 
 `INVALID_LOGICAL_OPERAND_TYPE`. 논리 연산에서 실제로 평가한 피연산자의 값이 불리언이 아니다.

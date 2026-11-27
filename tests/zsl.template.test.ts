@@ -373,6 +373,31 @@ describe('ZSL templates', () => {
     )
   })
 
+  it('selects a template branch by comparing the event severity', () => {
+    const expression = zsl.compile(
+      "${GET('event', 'severity') >= 5 ? '주의' : '정상'}",
+    )
+
+    expect(expression.evaluate({ event: { severity: 6 } })).toBe('주의')
+    expect(expression.evaluate({ event: { severity: 5 } })).toBe('주의')
+    expect(expression.evaluate({ event: { severity: 4 } })).toBe('정상')
+  })
+
+  it('reports the missing comparison value at its template source span', () => {
+    const expression = zsl.compile("🌐 ${1}\n${GET('event', 'severity') >= 5}")
+
+    assert.throws(
+      () => expression.evaluate(),
+      (error) => {
+        expect(error).toBeInstanceOf(ZslValidationError)
+        expect(error).toMatchObject({
+          issues: [{ kind: 'validation', span: { start: 10, end: 34 } }],
+        })
+        return true
+      },
+    )
+  })
+
   // 선택되지 않는 분기와 단락되는 오른쪽 항에 0으로 나누는 식을 둔다.
   // 각 구간은 필요한 값만 평가하고 그 결과를 차례로 출력한다.
   it('evaluates only the selected branch and required operands in each segment', () => {

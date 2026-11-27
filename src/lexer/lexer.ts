@@ -58,6 +58,10 @@ function readTokenAt(source: string, start: number, limit: number): Token {
     case '&&':
     case '||':
     case '??':
+    case '==':
+    case '!=':
+    case '<=':
+    case '>=':
       return {
         kind: 'operator',
         operator: pair,
@@ -71,6 +75,8 @@ function readTokenAt(source: string, start: number, limit: number): Token {
     case '-':
     case '*':
     case '/':
+    case '<':
+    case '>':
       return {
         kind: 'operator',
         operator: character,

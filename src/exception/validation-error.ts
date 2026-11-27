@@ -167,6 +167,21 @@ export class ZslInvalidArithmeticOperandTypeError extends ZslValidationError {
   }
 }
 
+export class ZslInvalidComparisonOperandTypeError extends ZslValidationError {
+  override readonly name = 'ZslInvalidComparisonOperandTypeError'
+  override readonly code = 'INVALID_COMPARISON_OPERAND_TYPE'
+
+  constructor(span: SourceSpan) {
+    super([
+      {
+        kind: 'validation',
+        message: '크기 비교의 피연산자는 숫자여야 합니다.',
+        span,
+      },
+    ])
+  }
+}
+
 export class ZslInvalidLogicalOperandTypeError extends ZslValidationError {
   override readonly name = 'ZslInvalidLogicalOperandTypeError'
   override readonly code = 'INVALID_LOGICAL_OPERAND_TYPE'
