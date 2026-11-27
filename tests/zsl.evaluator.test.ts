@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { evaluateExpression } from '../src/evaluator/index.js'
 import {
+  ZslInvalidNumberFormatError,
   ZslUnknownFunctionError,
   ZslValidationError,
 } from '../src/exception/index.js'
@@ -557,6 +558,164 @@ describe('EXIST', () => {
           expect.objectContaining({
             kind: 'validation',
             span,
+          }),
+        ],
+      }),
+    )
+  })
+})
+
+describe('FORMAT_NUM', () => {
+  it.each([
+    ['1234567890123.1', '# ????/????', '1234567890123    1/10  '],
+    ['12345678901234.1', '# ???/???', '12345678901234   1/10 '],
+  ])(
+    'preserves the decimal remainder in %s with %s',
+    (value, pattern, expected) => {
+      const ast = parseExpression(
+        `FORMAT_NUM(${value}, ${JSON.stringify(pattern)})`,
+      )
+
+      expect(evaluateExpression(ast)).toBe(expected)
+    },
+  )
+
+  it.each([
+    '',
+    '0;0',
+    '@',
+    '[>0]0;[<0]0',
+    '[Red]0',
+    '"count "0',
+    String.raw`0\!`,
+    '0_)',
+    '0*x',
+    '00000-0000',
+    '0é',
+    '0\n',
+    ' 0',
+    '0 ',
+    '# ##0.00',
+    '#  ?/?',
+    '# ? / ?',
+    '#\t?/?',
+    'MM/DD/YY',
+    'hh:mm',
+    'h:mm AM/PM',
+    '[h]:mm',
+    '[m]:ss',
+    '[s]',
+    '[$-ko-KR]#,##0.00',
+    '[$-412]#,##0.00',
+    '[$-0D00041E]#,##0.00',
+    '[DBNum1]0',
+    '표준',
+    'G/표준',
+    '$#,##0',
+    '₩#,##0',
+    '€#,##0',
+    '0[$£-809]',
+    '[$€-de-DE]#,##0.00',
+    '[$USD-en-US]0',
+    '[$-x-euro1]0',
+    '0" ₩"',
+    String.raw`0\$`,
+    '0.0.0',
+    '0.0,0',
+    '0,,0',
+    '?/',
+    '?/02',
+    'E+0',
+    '0E+',
+    '%0',
+    '0%0',
+    '0'.repeat(256),
+  ])('rejects unsupported format %j at the pattern argument', (pattern) => {
+    const argument = JSON.stringify(pattern)
+    const input = `FORMAT_NUM(1234.5, ${argument})`
+    const ast = parseExpression(input)
+    const start = input.indexOf(argument)
+    const evaluate = () => evaluateExpression(ast)
+
+    expect(evaluate).toThrow(ZslInvalidNumberFormatError)
+    expect(evaluate).toThrow(
+      expect.objectContaining({
+        code: 'INVALID_NUMBER_FORMAT',
+        issues: [
+          expect.objectContaining({
+            kind: 'validation',
+            span: { start, end: start + argument.length },
+          }),
+        ],
+      }),
+    )
+  })
+
+  it.each([
+    ['12200000', '#,###.0,', '12,200.0'],
+    ['4.34', '# ???/???', '4  17/50 '],
+    ['5.3', '# ?/?', '5 2/7'],
+    ['0.667', '# ???/???', ' 665/997'],
+    ['0.08', '# ?/?', '0    '],
+    ['0', '#0.0E+0', '00.0E+0'],
+    ['9007199254740993', 'General', '9007199254740993'],
+    ['1234567', '#,##0', '1,234,567'],
+    ['1234.5', '#,##0.00', '1,234.50'],
+    ['12.5', '0.##', '12.5'],
+    ['42', '0000', '0042'],
+    ['1.005', '0.00', '1.01'],
+    ['0 - 1.005', '0.00', '-1.01'],
+    ['999.995', '#,##0.00', '1,000.00'],
+    ['0 - 0.004', '0.00', '0.00'],
+    ['9007199254740993', '#,##0', '9,007,199,254,740,993'],
+    ['1234.56', '#,##0', '1,235'],
+    ['12200000', '#,###', '12,200,000'],
+    ['12200000', '0,000.00', '12,200,000.00'],
+    ['12200000', '#,', '12200'],
+    ['12200000', '0.0,,', '12.2'],
+    ['0.285', '0.00%', '28.50%'],
+    ['1234', '0%', '123400%'],
+    ['0.0123', '0.0%%', '123.0%%'],
+    ['12.34', '0.0E-00', '1.2E01'],
+    ['0.0123', '0.0E-00', '1.2E-02'],
+    ['999.95', '0.0E+00', '1.0E+03'],
+    ['12200000', '0.00E+00', '1.22E+07'],
+    ['4.34', '# ?/?', '4 1/3'],
+    ['4.34', '# ?/2', '4 1/2'],
+    ['8.9', '#.000', '8.900'],
+    ['12', '#.0#', '12.0'],
+    ['12', '.00', '12.00'],
+    ['12', '0.', '12.'],
+    ['12.5', 'General', '12.5'],
+    ['1234.5', '#,##0.0?', '1,234.5 '],
+  ])('formats %s with %s as %j', (value, pattern, expected) => {
+    const ast = parseExpression(
+      `FORMAT_NUM(${value}, ${JSON.stringify(pattern)})`,
+    )
+
+    expect(evaluateExpression(ast)).toBe(expected)
+  })
+
+  it.each([
+    { input: "FORMAT_NUM(null, '0')", argument: 'null' },
+    { input: "FORMAT_NUM('12', '0')", argument: "'12'" },
+    {
+      input: "FORMAT_NUM('2026-11-27T16:00:00Z', '0')",
+      argument: "'2026-11-27T16:00:00Z'",
+    },
+    { input: 'FORMAT_NUM(1, 0)', argument: '0' },
+  ])('reports an argument type error in $input', ({ input, argument }) => {
+    const ast = parseExpression(input)
+    const start = input.lastIndexOf(argument)
+
+    expect(() => evaluateExpression(ast)).toThrow(
+      expect.objectContaining({
+        code: 'INVALID_ARGUMENT_TYPE',
+        functionName: 'FORMAT_NUM',
+        issues: [
+          expect.objectContaining({
+            kind: 'validation',
+            span: { start, end: start + argument.length },
           }),
         ],
       }),

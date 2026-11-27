@@ -44,6 +44,27 @@ describe('checkExpression', () => {
     )
   })
 
+  it.each(['FORMAT_NUM()', 'FORMAT_NUM(1)', "FORMAT_NUM(1, '0', '0')"])(
+    'reports an arity error for the entire %s call',
+    (call) => {
+      const prefix = 'true ? 1 : '
+      const ast = parseExpression(prefix + call)
+      const check = () => checkExpression(ast)
+
+      expect(check).toThrow(ZslValidationError)
+      expect(check).toThrow(
+        expect.objectContaining({
+          issues: [
+            expect.objectContaining({
+              kind: 'validation',
+              span: { start: prefix.length, end: prefix.length + call.length },
+            }),
+          ],
+        }),
+      )
+    },
+  )
+
   // 검사기는 단락 평가나 삼항 분기가 건너뛸 호출도 확인한다.
   // 여러 오류가 있으면 원문에서 먼저 시작하는 호출의 범위를 보고한다.
   it.each([

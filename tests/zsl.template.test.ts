@@ -4,12 +4,148 @@ import { Expression } from '../src/expression/index.js'
 import {
   ZSL,
   ZslError,
+  ZslInvalidArgumentCountError,
+  ZslInvalidArgumentTypeError,
+  ZslInvalidNumberFormatError,
   ZslSyntaxError,
+  ZslUnformattableNumberError,
   ZslUnexpectedCharacterError,
   ZslValidationError,
 } from '../src/zsl/index.js'
 
 const zsl = new ZSL()
+
+describe('FORMAT_NUM runtime formatting and errors', () => {
+  const source =
+    "🌐 ${FORMAT_NUM(GET('stats', 'value'), GET('stats', 'pattern'))}"
+  const expression = zsl.compile(source)
+
+  it('evaluates the current number and pattern from context', () => {
+    expect(
+      expression.evaluate({ stats: { value: 1234.5, pattern: '#,##0.00' } }),
+    ).toBe('🌐 1,234.50')
+    expect(
+      expression.evaluate({ stats: { value: 0.125, pattern: '0.0%' } }),
+    ).toBe('🌐 12.5%')
+  })
+
+  it('accepts a 255-character pattern and a 255-character number result', () => {
+    expect(
+      expression.evaluate({ stats: { value: 42, pattern: '0'.repeat(255) } }),
+    ).toBe(`🌐 ${'0'.repeat(253)}42`)
+  })
+
+  it('preserves bigint results beyond 255 characters', () => {
+    const digits = `1${'0'.repeat(255)}`
+    const input = `\${FORMAT_NUM(${digits}, '0')}`
+    expect(zsl.compile(input).evaluate()).toBe(digits)
+  })
+
+  it.each([
+    [
+      ZslInvalidNumberFormatError,
+      'INVALID_NUMBER_FORMAT',
+      1,
+      '0.0.0',
+      'pattern',
+    ],
+    [
+      ZslInvalidNumberFormatError,
+      'INVALID_NUMBER_FORMAT',
+      1,
+      '0"unterminated',
+      'pattern',
+    ],
+    [
+      ZslInvalidNumberFormatError,
+      'INVALID_NUMBER_FORMAT',
+      42670,
+      'MM/DD/YY',
+      'pattern',
+    ],
+    [
+      ZslInvalidNumberFormatError,
+      'INVALID_NUMBER_FORMAT',
+      -0.5,
+      '[h]:mm',
+      'pattern',
+    ],
+    [
+      ZslInvalidNumberFormatError,
+      'INVALID_NUMBER_FORMAT',
+      1234.5,
+      '[$€-de-DE]#,##0.00',
+      'pattern',
+    ],
+    [
+      ZslInvalidNumberFormatError,
+      'INVALID_NUMBER_FORMAT',
+      12,
+      '0" £"',
+      'pattern',
+    ],
+    [
+      ZslInvalidNumberFormatError,
+      'INVALID_NUMBER_FORMAT',
+      0,
+      '[>0]0;[<0]0',
+      'pattern',
+    ],
+    [ZslUnformattableNumberError, 'UNFORMATTABLE_NUMBER', 1e300, '0', 'value'],
+    [ZslInvalidArgumentTypeError, 'INVALID_ARGUMENT_TYPE', 1, false, 'pattern'],
+    [ZslInvalidArgumentTypeError, 'INVALID_ARGUMENT_TYPE', '1', '0', 'value'],
+  ] as const)(
+    'exposes %s with the dynamic argument span',
+    (ErrorClass, code, value, pattern, argument) => {
+      const argumentSource = `GET('stats', '${argument}')`
+      const start = source.indexOf(argumentSource)
+      assert.throws(
+        () => expression.evaluate({ stats: { value, pattern } }),
+        (error) => {
+          assert.ok(error instanceof ErrorClass)
+          assert.equal(error.code, code)
+          assert.deepEqual(error.issues[0].span, {
+            start,
+            end: start + argumentSource.length,
+          })
+          return true
+        },
+      )
+    },
+  )
+
+  it('reports exact arity at the full call even in an inactive branch', () => {
+    const call = "FORMAT_NUM(1, '0', '0')"
+    const prefix = '🌐 ${true ? 1 : '
+    assert.throws(
+      () => zsl.compile(`${prefix}${call}}`),
+      (error) => {
+        assert.ok(error instanceof ZslInvalidArgumentCountError)
+        assert.equal(error.code, 'INVALID_ARGUMENT_COUNT')
+        assert.equal(error.functionName, 'FORMAT_NUM')
+        assert.equal(error.expectedArguments, 2)
+        assert.equal(error.actualArguments, 3)
+        assert.deepEqual(error.issues[0].span, {
+          start: prefix.length,
+          end: prefix.length + call.length,
+        })
+        return true
+      },
+    )
+  })
+
+  it('checks formatted text against the template output limit', () => {
+    const expression = new ZSL({ maxOutputLength: 3 }).compile(
+      "${FORMAT_NUM(42, '0000')}",
+    )
+    expect(() => expression.evaluate()).toThrow(
+      expect.objectContaining({
+        code: 'OUTPUT_LENGTH_LIMIT_EXCEEDED',
+        limit: 3,
+      }),
+    )
+  })
+})
 
 describe('FORMAT_NUM numeric formatting regressions', () => {
   function formatNumber(value: number, pattern: string): string {
@@ -433,6 +569,17 @@ describe('ZSL templates', () => {
     )
 
     expect(expression.evaluate({})).toBe('없음')
+  })
+
+  it('formats an alert count and its fallback with FORMAT_NUM', () => {
+    const expression = zsl.compile(
+      "탐지 건수 ${FORMAT_NUM(GET('alert', 'count') ?? 0, '#,##0')}건",
+    )
+
+    expect(expression.evaluate({ alert: { count: 12345 } })).toBe(
+      '탐지 건수 12,345건',
+    )
+    expect(expression.evaluate({})).toBe('탐지 건수 0건')
   })
 
   it('reports the missing comparison value at its template source span', () => {

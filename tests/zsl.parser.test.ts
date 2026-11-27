@@ -73,6 +73,17 @@ describe('readToken', () => {
 })
 
 describe('parseExpression', () => {
+  it('parses FORMAT_NUM as a builtin call', () => {
+    expect(parseExpression("FORMAT_NUM(1234.5, '#,##0.00')")).toMatchObject({
+      kind: 'call',
+      name: 'FORMAT_NUM',
+      args: [
+        { kind: 'literal', value: 1234.5 },
+        { kind: 'literal', value: '#,##0.00' },
+      ],
+    })
+  })
+
   it('accepts every builtin function named in the EBNF and registry', () => {
     const spec = readFileSync(
       new URL('../spec/zsl.ebnf', import.meta.url),
