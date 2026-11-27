@@ -38,6 +38,22 @@ export const samples: readonly [Sample, ...Sample[]] = [
     },
   },
   {
+    id: 'number-format',
+    name: '숫자 서식',
+    description: 'FORMAT_NUM으로 천 단위 구분과 소수 자릿수 지정하기',
+    input: {
+      source: [
+        "탐지 건수: ${FORMAT_NUM(GET('alert', 'count') ?? 0, '#,##0')}건",
+        "위험 점수: ${FORMAT_NUM(GET('alert', 'riskScore'), '0.00')}",
+      ].join('\n'),
+      context: JSON.stringify(
+        { alert: { count: 12345, riskScore: 12.5 } },
+        null,
+        2,
+      ),
+    },
+  },
+  {
     id: 'precision',
     name: '큰 정수와 소수',
     description: '안전 정수 범위를 넘는 값 확인하기',
@@ -70,6 +86,12 @@ export const quickReference = [
     description:
       '첫 인자는 컨텍스트의 키입니다. 이어지는 문자열은 중첩 속성의 경로입니다.',
     example: "${GET('service', 'name')}",
+  },
+  {
+    notation: 'FORMAT_NUM',
+    name: '숫자 서식',
+    description: '숫자를 지정한 서식의 문자열로 표시합니다.',
+    example: "${FORMAT_NUM(1234.5, '#,##0.00')}",
   },
   {
     notation: '? :',
