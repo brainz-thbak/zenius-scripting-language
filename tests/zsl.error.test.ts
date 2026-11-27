@@ -62,7 +62,7 @@ describe('ZSL errors', () => {
     expect(syntaxError).toMatchObject({
       name: 'ZslSyntaxError',
       code: 'SYNTAX_ERROR',
-      message: 'ZSL syntax error',
+      message: 'ZSL 문법이 올바르지 않습니다.',
       issues: [syntaxIssue],
     })
     expect(validationError).toBeInstanceOf(ZslError)
@@ -71,7 +71,7 @@ describe('ZSL errors', () => {
     expect(validationError).toMatchObject({
       name: 'ZslValidationError',
       code: 'VALIDATION_ERROR',
-      message: 'ZSL validation failed',
+      message: 'ZSL 검사 또는 평가에 실패했습니다.',
       issues: [validationIssue],
     })
 
@@ -115,112 +115,112 @@ describe('ZSL errors', () => {
       input: '1 + 😀',
       type: ZslUnexpectedCharacterError,
       code: 'UNEXPECTED_CHARACTER',
-      message: 'Unexpected character',
+      message: '허용되지 않는 문자입니다.',
       span: { start: 4, end: 6 },
     },
     {
       input: '"\\q"',
       type: ZslUnsupportedEscapeError,
       code: 'UNSUPPORTED_ESCAPE',
-      message: 'Unsupported escape sequence',
+      message: '지원하지 않는 이스케이프입니다.',
       span: { start: 1, end: 3 },
     },
     {
       input: "'line\nfeed'",
       type: ZslInvalidStringCharacterError,
       code: 'INVALID_STRING_CHARACTER',
-      message: 'Unexpected control character in string',
+      message: '문자열 리터럴에 이스케이프되지 않은 제어 문자가 있습니다.',
       span: { start: 5, end: 6 },
     },
     {
       input: "'open",
       type: ZslUnterminatedStringError,
       code: 'UNTERMINATED_STRING',
-      message: 'Unterminated string',
+      message: '문자열을 닫는 따옴표가 없습니다.',
       span: { start: 0, end: 5 },
     },
     {
       input: '14.',
       type: ZslMissingFractionDigitError,
       code: 'MISSING_FRACTION_DIGIT',
-      message: 'Expected a digit after the decimal point',
+      message: '소수점 뒤에 숫자가 필요합니다.',
       span: { start: 2, end: 3 },
     },
     {
       input: '14.\u0301',
       type: ZslUnexpectedCharacterError,
       code: 'UNEXPECTED_CHARACTER',
-      message: 'Unexpected character',
+      message: '허용되지 않는 문자입니다.',
       span: { start: 2, end: 4 },
     },
     {
       input: '14.😀',
       type: ZslMissingFractionDigitError,
       code: 'MISSING_FRACTION_DIGIT',
-      message: 'Expected a digit after the decimal point',
+      message: '소수점 뒤에 숫자가 필요합니다.',
       span: { start: 2, end: 3 },
     },
     {
       input: nonFiniteInteger,
       type: ZslNonFiniteNumberLiteralError,
       code: 'NON_FINITE_NUMBER_LITERAL',
-      message: 'Number must be finite',
+      message: '숫자 리터럴은 유한한 값이어야 합니다.',
       span: { start: 0, end: 309 },
     },
     {
       input: `${nonFiniteInteger}\u0301`,
       type: ZslUnexpectedCharacterError,
       code: 'UNEXPECTED_CHARACTER',
-      message: 'Unexpected character',
+      message: '허용되지 않는 문자입니다.',
       span: { start: 308, end: 310 },
     },
     {
       input: `${nonFiniteInteger}😀`,
       type: ZslNonFiniteNumberLiteralError,
       code: 'NON_FINITE_NUMBER_LITERAL',
-      message: 'Number must be finite',
+      message: '숫자 리터럴은 유한한 값이어야 합니다.',
       span: { start: 0, end: 309 },
     },
     {
       input: 'GET',
       type: ZslMissingCallOpeningParenError,
       code: 'MISSING_CALL_OPENING_PAREN',
-      message: "Expected '(' after function name",
+      message: "함수 이름 뒤에 여는 괄호 '('가 필요합니다.",
       span: { start: 0, end: 3 },
     },
     {
       input: '1 +',
       type: ZslMissingOperandError,
       code: 'MISSING_OPERAND',
-      message: 'Expected an operand',
+      message: '피연산자가 필요합니다.',
       span: { start: 3, end: 3 },
     },
     {
       input: '(1',
       type: ZslMissingGroupClosingParenError,
       code: 'MISSING_GROUP_CLOSING_PAREN',
-      message: "Expected ')' after expression",
+      message: "표현식 뒤에 닫는 괄호 ')'가 필요합니다.",
       span: { start: 2, end: 2 },
     },
     {
       input: "GET('event' 'severity')",
       type: ZslExpectedArgumentDelimiterError,
       code: 'EXPECTED_ARGUMENT_DELIMITER',
-      message: "Expected ',' or ')' after argument",
+      message: "인자 뒤에 쉼표 ',' 또는 닫는 괄호 ')'가 필요합니다.",
       span: { start: 12, end: 22 },
     },
     {
       input: 'true ? 1',
       type: ZslMissingConditionalColonError,
       code: 'MISSING_CONDITIONAL_COLON',
-      message: "Expected ':' after the true branch",
+      message: "조건이 참일 때 평가할 식 뒤에 콜론 ':'이 필요합니다.",
       span: { start: 8, end: 8 },
     },
     {
       input: '1 2',
       type: ZslTrailingTokenError,
       code: 'TRAILING_TOKEN',
-      message: 'Unexpected token after expression',
+      message: '표현식 뒤에 예상하지 못한 토큰이 있습니다.',
       span: { start: 2, end: 3 },
     },
   ])('reports $code while parsing', ({ input, type, code, message, span }) => {
@@ -232,7 +232,7 @@ describe('ZSL errors', () => {
         expect(error).toMatchObject({
           name: type.name,
           code,
-          message: 'ZSL syntax error',
+          message: 'ZSL 문법이 올바르지 않습니다.',
           issues: [{ kind: 'syntax', message, span }],
         })
         return true
@@ -251,11 +251,11 @@ describe('ZSL errors', () => {
         expect(error).toMatchObject({
           name: 'ZslUnterminatedTemplateExpressionError',
           code: 'UNTERMINATED_TEMPLATE_EXPRESSION',
-          message: 'ZSL syntax error',
+          message: 'ZSL 문법이 올바르지 않습니다.',
           issues: [
             {
               kind: 'syntax',
-              message: 'Unterminated template expression',
+              message: "템플릿 표현식을 닫는 '}'가 없습니다.",
               span: { start: 7, end: 10 },
             },
           ],
@@ -299,14 +299,14 @@ describe('ZSL errors', () => {
       input: 'missing()',
       type: ZslUnknownFunctionError,
       code: 'UNKNOWN_FUNCTION',
-      message: "Unknown function 'missing'",
+      message: "등록되지 않은 함수 'missing'입니다.",
       details: { functionName: 'missing' },
     },
     {
       input: 'GET()',
       type: ZslInsufficientArgumentsError,
       code: 'INSUFFICIENT_ARGUMENTS',
-      message: "'GET' requires at least 2 arguments",
+      message: "'GET' 함수에는 인자가 최소 2개 필요합니다.",
       details: { functionName: 'GET', minimumArguments: 2, actualArguments: 0 },
     },
   ])(
@@ -320,7 +320,7 @@ describe('ZSL errors', () => {
           expect(error).toMatchObject({
             name: type.name,
             code,
-            message: 'ZSL validation failed',
+            message: 'ZSL 검사 또는 평가에 실패했습니다.',
             issues: [
               {
                 kind: 'validation',
@@ -343,7 +343,7 @@ describe('ZSL errors', () => {
       input: "GET('event', false)",
       type: ZslInvalidArgumentTypeError,
       code: 'INVALID_ARGUMENT_TYPE',
-      message: 'GET arguments must be strings',
+      message: "'GET' 함수의 인자는 문자열 타입이어야 합니다.",
       span: { start: 15, end: 20 },
       details: { functionName: 'GET', expectedType: 'string' },
     },
@@ -352,7 +352,7 @@ describe('ZSL errors', () => {
       type: ZslInvalidFunctionResultError,
       code: 'INVALID_FUNCTION_RESULT',
       message:
-        'GET result must be a string, a boolean, null, or a finite number',
+        "'GET' 함수의 반환값은 문자열, 불리언, null 또는 유한한 숫자여야 합니다.",
       span: { start: 2, end: 23 },
       details: { functionName: 'GET' },
     },
@@ -360,49 +360,49 @@ describe('ZSL errors', () => {
       input: '1 ? 2 : 3',
       type: ZslInvalidConditionTypeError,
       code: 'INVALID_CONDITION_TYPE',
-      message: 'Conditional condition must be a boolean',
+      message: '삼항 연산자의 조건은 불리언이어야 합니다.',
       span: { start: 2, end: 3 },
     },
     {
       input: '1 / 0',
       type: ZslDivisionByZeroError,
       code: 'DIVISION_BY_ZERO',
-      message: 'Division by zero',
+      message: '0으로 나눌 수 없습니다.',
       span: { start: 6, end: 7 },
     },
     {
       input: '1 / (9007199254740993 - 9007199254740993)',
       type: ZslDivisionByZeroError,
       code: 'DIVISION_BY_ZERO',
-      message: 'Division by zero',
+      message: '0으로 나눌 수 없습니다.',
       span: { start: 6, end: 43 },
     },
     {
       input: `${'9'.repeat(308)} * 2`,
       type: ZslNonFiniteArithmeticResultError,
       code: 'NON_FINITE_ARITHMETIC_RESULT',
-      message: 'Arithmetic result must be finite',
+      message: '산술 연산 결과는 유한한 값이어야 합니다.',
       span: { start: 2, end: 314 },
     },
     {
       input: `${'9'.repeat(308)} * 2.5`,
       type: ZslNonFiniteArithmeticResultError,
       code: 'NON_FINITE_ARITHMETIC_RESULT',
-      message: 'Arithmetic result must be finite',
+      message: '산술 연산 결과는 유한한 값이어야 합니다.',
       span: { start: 2, end: 316 },
     },
     {
       input: '1 + true',
       type: ZslInvalidArithmeticOperandTypeError,
       code: 'INVALID_ARITHMETIC_OPERAND_TYPE',
-      message: 'Arithmetic operands must be numbers',
+      message: '산술 연산의 피연산자는 숫자여야 합니다.',
       span: { start: 6, end: 10 },
     },
     {
       input: 'true && 1',
       type: ZslInvalidLogicalOperandTypeError,
       code: 'INVALID_LOGICAL_OPERAND_TYPE',
-      message: 'Logical operands must be booleans',
+      message: '논리 연산의 피연산자는 불리언이어야 합니다.',
       span: { start: 10, end: 11 },
     },
   ])(
@@ -417,7 +417,7 @@ describe('ZSL errors', () => {
           expect(error).toMatchObject({
             name: type.name,
             code,
-            message: 'ZSL validation failed',
+            message: 'ZSL 검사 또는 평가에 실패했습니다.',
             issues: [{ kind: 'validation', message, span }],
             ...details,
           })
@@ -466,7 +466,7 @@ describe('ZSL errors', () => {
         expect(error).toMatchObject({
           name: 'ZslUnsupportedExpressionNodeError',
           code: 'UNSUPPORTED_EXPRESSION_NODE',
-          message: 'Unsupported expression node',
+          message: '지원하지 않는 표현식 노드입니다.',
           issues: [],
         })
         return true

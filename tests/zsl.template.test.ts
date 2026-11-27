@@ -665,19 +665,22 @@ describe('ZSL templates', () => {
   it.each([
     {
       source: '${"\\q"}',
-      message: 'Unsupported escape sequence',
+      code: 'UNSUPPORTED_ESCAPE',
+      message: '지원하지 않는 이스케이프입니다.',
       span: { start: 3, end: 5 },
     },
     {
       source: '${"\\q"',
-      message: 'Unterminated template expression',
+      code: 'UNTERMINATED_TEMPLATE_EXPRESSION',
+      message: "템플릿 표현식을 닫는 '}'가 없습니다.",
       span: { start: 0, end: 6 },
     },
-  ])('reports $message for "$source"', ({ source, message, span }) => {
+  ])('reports $code for "$source"', ({ source, code, message, span }) => {
     const compile = () => zsl.compile(source)
     expect(compile).toThrow(ZslSyntaxError)
     expect(compile).toThrow(
       expect.objectContaining({
+        code,
         issues: [{ kind: 'syntax', message, span }],
       }),
     )

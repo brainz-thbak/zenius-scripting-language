@@ -7,7 +7,7 @@ export class ZslSyntaxError extends ZslError<ZslIssue<'syntax'>> {
   override readonly code: string = 'SYNTAX_ERROR'
 
   constructor(issues: readonly ZslIssue<'syntax'>[]) {
-    super('ZSL syntax error', issues)
+    super('ZSL 문법이 올바르지 않습니다.', issues)
   }
 }
 
@@ -16,7 +16,7 @@ export class ZslUnexpectedCharacterError extends ZslSyntaxError {
   override readonly code = 'UNEXPECTED_CHARACTER'
 
   constructor(span: SourceSpan) {
-    super([{ kind: 'syntax', message: 'Unexpected character', span }])
+    super([{ kind: 'syntax', message: '허용되지 않는 문자입니다.', span }])
   }
 }
 
@@ -25,7 +25,9 @@ export class ZslUnsupportedEscapeError extends ZslSyntaxError {
   override readonly code = 'UNSUPPORTED_ESCAPE'
 
   constructor(span: SourceSpan) {
-    super([{ kind: 'syntax', message: 'Unsupported escape sequence', span }])
+    super([
+      { kind: 'syntax', message: '지원하지 않는 이스케이프입니다.', span },
+    ])
   }
 }
 
@@ -37,7 +39,7 @@ export class ZslInvalidStringCharacterError extends ZslSyntaxError {
     super([
       {
         kind: 'syntax',
-        message: 'Unexpected control character in string',
+        message: '문자열 리터럴에 이스케이프되지 않은 제어 문자가 있습니다.',
         span,
       },
     ])
@@ -49,7 +51,9 @@ export class ZslUnterminatedStringError extends ZslSyntaxError {
   override readonly code = 'UNTERMINATED_STRING'
 
   constructor(span: SourceSpan) {
-    super([{ kind: 'syntax', message: 'Unterminated string', span }])
+    super([
+      { kind: 'syntax', message: '문자열을 닫는 따옴표가 없습니다.', span },
+    ])
   }
 }
 
@@ -61,7 +65,7 @@ export class ZslMissingFractionDigitError extends ZslSyntaxError {
     super([
       {
         kind: 'syntax',
-        message: 'Expected a digit after the decimal point',
+        message: '소수점 뒤에 숫자가 필요합니다.',
         span,
       },
     ])
@@ -73,7 +77,13 @@ export class ZslNonFiniteNumberLiteralError extends ZslSyntaxError {
   override readonly code = 'NON_FINITE_NUMBER_LITERAL'
 
   constructor(span: SourceSpan) {
-    super([{ kind: 'syntax', message: 'Number must be finite', span }])
+    super([
+      {
+        kind: 'syntax',
+        message: '숫자 리터럴은 유한한 값이어야 합니다.',
+        span,
+      },
+    ])
   }
 }
 
@@ -83,7 +93,11 @@ export class ZslMissingCallOpeningParenError extends ZslSyntaxError {
 
   constructor(span: SourceSpan) {
     super([
-      { kind: 'syntax', message: "Expected '(' after function name", span },
+      {
+        kind: 'syntax',
+        message: "함수 이름 뒤에 여는 괄호 '('가 필요합니다.",
+        span,
+      },
     ])
   }
 }
@@ -93,7 +107,7 @@ export class ZslMissingOperandError extends ZslSyntaxError {
   override readonly code = 'MISSING_OPERAND'
 
   constructor(span: SourceSpan) {
-    super([{ kind: 'syntax', message: 'Expected an operand', span }])
+    super([{ kind: 'syntax', message: '피연산자가 필요합니다.', span }])
   }
 }
 
@@ -102,7 +116,13 @@ export class ZslMissingGroupClosingParenError extends ZslSyntaxError {
   override readonly code = 'MISSING_GROUP_CLOSING_PAREN'
 
   constructor(span: SourceSpan) {
-    super([{ kind: 'syntax', message: "Expected ')' after expression", span }])
+    super([
+      {
+        kind: 'syntax',
+        message: "표현식 뒤에 닫는 괄호 ')'가 필요합니다.",
+        span,
+      },
+    ])
   }
 }
 
@@ -112,7 +132,11 @@ export class ZslExpectedArgumentDelimiterError extends ZslSyntaxError {
 
   constructor(span: SourceSpan) {
     super([
-      { kind: 'syntax', message: "Expected ',' or ')' after argument", span },
+      {
+        kind: 'syntax',
+        message: "인자 뒤에 쉼표 ',' 또는 닫는 괄호 ')'가 필요합니다.",
+        span,
+      },
     ])
   }
 }
@@ -123,7 +147,11 @@ export class ZslMissingConditionalColonError extends ZslSyntaxError {
 
   constructor(span: SourceSpan) {
     super([
-      { kind: 'syntax', message: "Expected ':' after the true branch", span },
+      {
+        kind: 'syntax',
+        message: "조건이 참일 때 평가할 식 뒤에 콜론 ':'이 필요합니다.",
+        span,
+      },
     ])
   }
 }
@@ -134,7 +162,11 @@ export class ZslTrailingTokenError extends ZslSyntaxError {
 
   constructor(span: SourceSpan) {
     super([
-      { kind: 'syntax', message: 'Unexpected token after expression', span },
+      {
+        kind: 'syntax',
+        message: '표현식 뒤에 예상하지 못한 토큰이 있습니다.',
+        span,
+      },
     ])
   }
 }
@@ -145,7 +177,7 @@ export class ZslUnterminatedTemplateExpressionError extends ZslSyntaxError {
 
   constructor(span: SourceSpan) {
     super([
-      { kind: 'syntax', message: 'Unterminated template expression', span },
+      { kind: 'syntax', message: "템플릿 표현식을 닫는 '}'가 없습니다.", span },
     ])
   }
 }

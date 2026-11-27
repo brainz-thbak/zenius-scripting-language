@@ -21,7 +21,7 @@ export class ZSL {
         options === null ||
         Array.isArray(options))
     ) {
-      throw new TypeError('ZSL options must be an object')
+      throw new TypeError('ZSL 옵션은 객체여야 합니다.')
     }
 
     this.maxInputLength =
@@ -52,7 +52,9 @@ function readLengthLimit(
     return undefined
   }
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new RangeError(`${option} must be a nonnegative safe integer`)
+    throw new RangeError(
+      `${option} 옵션에는 0 이상의 안전한 정수를 지정해야 합니다.`,
+    )
   }
   return value
 }

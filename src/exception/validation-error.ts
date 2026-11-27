@@ -2,12 +2,18 @@ import type { SourceSpan } from '../ast/index.js'
 import type { ZslIssue } from './types.js'
 import { ZslError } from './zsl-error.js'
 
+const argumentTypeNames = {
+  string: '문자열',
+  number: '숫자',
+  boolean: '불리언',
+}
+
 export class ZslValidationError extends ZslError<ZslIssue<'validation'>> {
   override readonly name: string = 'ZslValidationError'
   override readonly code: string = 'VALIDATION_ERROR'
 
   constructor(issues: readonly ZslIssue<'validation'>[]) {
-    super('ZSL validation failed', issues)
+    super('ZSL 검사 또는 평가에 실패했습니다.', issues)
   }
 }
 
@@ -22,7 +28,7 @@ export class ZslUnknownFunctionError extends ZslValidationError {
     super([
       {
         kind: 'validation',
-        message: `Unknown function '${functionName}'`,
+        message: `등록되지 않은 함수 '${functionName}'입니다.`,
         span,
       },
     ])
@@ -51,7 +57,7 @@ export class ZslInsufficientArgumentsError extends ZslValidationError {
     super([
       {
         kind: 'validation',
-        message: `'${functionName}' requires at least ${minimumArguments} arguments`,
+        message: `'${functionName}' 함수에는 인자가 최소 ${minimumArguments}개 필요합니다.`,
         span,
       },
     ])
@@ -80,7 +86,7 @@ export class ZslInvalidArgumentTypeError extends ZslValidationError {
     super([
       {
         kind: 'validation',
-        message: `${functionName} arguments must be ${expectedType}s`,
+        message: `'${functionName}' 함수의 인자는 ${argumentTypeNames[expectedType]} 타입이어야 합니다.`,
         span,
       },
     ])
@@ -100,7 +106,7 @@ export class ZslInvalidFunctionResultError extends ZslValidationError {
     super([
       {
         kind: 'validation',
-        message: `${functionName} result must be a string, a boolean, null, or a finite number`,
+        message: `'${functionName}' 함수의 반환값은 문자열, 불리언, null 또는 유한한 숫자여야 합니다.`,
         span,
       },
     ])
@@ -115,7 +121,7 @@ export class ZslInvalidConditionTypeError extends ZslValidationError {
     super([
       {
         kind: 'validation',
-        message: 'Conditional condition must be a boolean',
+        message: '삼항 연산자의 조건은 불리언이어야 합니다.',
         span,
       },
     ])
@@ -127,7 +133,7 @@ export class ZslDivisionByZeroError extends ZslValidationError {
   override readonly code = 'DIVISION_BY_ZERO'
 
   constructor(span: SourceSpan) {
-    super([{ kind: 'validation', message: 'Division by zero', span }])
+    super([{ kind: 'validation', message: '0으로 나눌 수 없습니다.', span }])
   }
 }
 
@@ -137,7 +143,11 @@ export class ZslNonFiniteArithmeticResultError extends ZslValidationError {
 
   constructor(span: SourceSpan) {
     super([
-      { kind: 'validation', message: 'Arithmetic result must be finite', span },
+      {
+        kind: 'validation',
+        message: '산술 연산 결과는 유한한 값이어야 합니다.',
+        span,
+      },
     ])
   }
 }
@@ -150,7 +160,7 @@ export class ZslInvalidArithmeticOperandTypeError extends ZslValidationError {
     super([
       {
         kind: 'validation',
-        message: 'Arithmetic operands must be numbers',
+        message: '산술 연산의 피연산자는 숫자여야 합니다.',
         span,
       },
     ])
@@ -165,7 +175,7 @@ export class ZslInvalidLogicalOperandTypeError extends ZslValidationError {
     super([
       {
         kind: 'validation',
-        message: 'Logical operands must be booleans',
+        message: '논리 연산의 피연산자는 불리언이어야 합니다.',
         span,
       },
     ])

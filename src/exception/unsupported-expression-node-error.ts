@@ -5,6 +5,6 @@ export class ZslUnsupportedExpressionNodeError extends ZslError<never> {
   override readonly code = 'UNSUPPORTED_EXPRESSION_NODE'
 
   constructor() {
-    super('Unsupported expression node', [])
+    super('지원하지 않는 표현식 노드입니다.', [])
   }
 }

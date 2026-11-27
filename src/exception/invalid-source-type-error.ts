@@ -5,6 +5,6 @@ export class ZslInvalidSourceTypeError extends ZslError<never> {
   override readonly code = 'INVALID_SOURCE_TYPE'
 
   constructor() {
-    super('ZSL template source must be a string', [])
+    super('템플릿 원문은 문자열이어야 합니다.', [])
   }
 }

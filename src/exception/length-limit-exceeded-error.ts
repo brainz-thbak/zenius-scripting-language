@@ -6,7 +6,7 @@ export class ZslInputLengthLimitExceededError extends ZslError<never> {
 
   constructor(readonly limit: number) {
     super(
-      `ZSL template source exceeds the maximum input length of ${limit}`,
+      `템플릿 원문의 길이가 최대 ${limit} UTF-16 코드 단위를 초과했습니다.`,
       [],
     )
   }
@@ -18,7 +18,7 @@ export class ZslOutputLengthLimitExceededError extends ZslError<never> {
 
   constructor(readonly limit: number) {
     super(
-      `Rendered ZSL template exceeds the maximum output length of ${limit}`,
+      `평가 결과의 길이가 최대 ${limit} UTF-16 코드 단위를 초과했습니다.`,
       [],
     )
   }
