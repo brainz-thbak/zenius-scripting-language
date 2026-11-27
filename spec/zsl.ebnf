@@ -22,10 +22,9 @@ ordering = sum, { spacing, ( "<" | "<=" | ">" | ">=" ), spacing, sum } ;
 sum = product, { spacing, ( "+" | "-" ), spacing, product } ;
 product = primary, { spacing, ( "*" | "/" ), spacing, primary } ;
 primary = literal | call | "(", spacing, expression, spacing, ")" ;
-call = identifier, spacing, "(", spacing, [ arguments, spacing ], ")" ;
+call = builtin function, spacing, "(", spacing, [ arguments, spacing ], ")" ;
+builtin function = "GET" | "EXIST" ;
 arguments = expression, { spacing, ",", spacing, expression } ;
-identifier = ( ( letter | "_" ), { letter | digit | "_" } ) - ( boolean | null ) ;
-letter = ? A through Z or a through z ? ;
 literal = number | string | boolean | null ;
 
 number = digit, { digit }, [ ".", digit, { digit } ] ;

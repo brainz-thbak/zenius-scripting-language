@@ -102,6 +102,24 @@ export class ZslMissingCallOpeningParenError extends ZslSyntaxError {
   }
 }
 
+export class ZslUnknownFunctionError extends ZslSyntaxError {
+  override readonly name = 'ZslUnknownFunctionError'
+  override readonly code = 'UNKNOWN_FUNCTION'
+
+  constructor(
+    readonly functionName: string,
+    span: SourceSpan,
+  ) {
+    super([
+      {
+        kind: 'syntax',
+        message: `등록되지 않은 함수 '${functionName}'입니다.`,
+        span,
+      },
+    ])
+  }
+}
+
 export class ZslMissingOperandError extends ZslSyntaxError {
   override readonly name = 'ZslMissingOperandError'
   override readonly code = 'MISSING_OPERAND'

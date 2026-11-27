@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { SourceSpan } from '../src/ast/index.js'
-import { ZslSyntaxError } from '../src/exception/index.js'
+import {
+  ZslSyntaxError,
+  ZslUnknownFunctionError,
+} from '../src/exception/index.js'
+import { builtinFunctions } from '../src/functions/functions.js'
 import { readToken } from '../src/lexer/index.js'
 import { parseExpression } from '../src/parser/index.js'
 import { literalCases } from './zsl.literal-cases.js'
@@ -68,6 +73,20 @@ describe('readToken', () => {
 })
 
 describe('parseExpression', () => {
+  it('accepts every builtin function named in the EBNF and registry', () => {
+    const spec = readFileSync(
+      new URL('../spec/zsl.ebnf', import.meta.url),
+      'utf8',
+    )
+    const rule = spec.match(/^builtin function\s*=([^;]+);/m)?.[1] ?? ''
+    const names = Array.from(rule.matchAll(/"([^"]+)"/g), ([, name]) => name)
+
+    expect(names.sort()).toEqual([...builtinFunctions.keys()].sort())
+    for (const name of names) {
+      expect(parseExpression(`${name}()`)).toMatchObject({ kind: 'call', name })
+    }
+  })
+
   // 공통 리터럴 표의 원문을 파싱해 디코딩한 값과 전체 원문 범위를 가진 AST를 확인한다.
   it.each(literalCases)('parses $name', ({ input, expected }) => {
     expect(parseExpression(input)).toEqual({
@@ -90,21 +109,56 @@ describe('parseExpression', () => {
   // 외부 호출의 인자에 이모지 문자열과 인자 없는 내부 호출을 넣는다.
   // 각 인자와 호출은 원문의 자기 범위를 가지며, 내부 호출의 인자 배열은 비어 있다.
   it('parses nested calls and an empty argument list with UTF-16 spans', () => {
-    expect(parseExpression(" GET ('😀', _next2()) ")).toEqual({
+    expect(parseExpression(" GET ('😀', EXIST()) ")).toEqual({
       kind: 'call',
       name: 'GET',
       args: [
         { kind: 'literal', value: '😀', span: { start: 6, end: 10 } },
         {
           kind: 'call',
-          name: '_next2',
+          name: 'EXIST',
           args: [],
-          span: { start: 12, end: 20 },
+          span: { start: 12, end: 19 },
         },
       ],
-      span: { start: 1, end: 21 },
+      span: { start: 1, end: 20 },
     })
   })
+
+  it.each([
+    { name: 'unknown', input: 'unknown()' },
+    { name: 'get', input: "get('event', 'severity')" },
+    { name: 'GET2', input: "GET2('event', 'severity')" },
+    { name: 'constructor', input: 'constructor()' },
+    { name: 'toString', input: 'toString()' },
+    { name: '__proto__', input: '__proto__()' },
+    { name: 'fetch', input: 'fetch("/")' },
+    { name: 'XMLHttpRequest', input: 'XMLHttpRequest()' },
+    { name: 'dayjs', input: 'dayjs()' },
+    { name: 'missing', input: "GET('😀', missing())" },
+    { name: 'missing', input: 'true || missing()' },
+  ])(
+    'rejects an unregistered call in $input while parsing',
+    ({ name, input }) => {
+      const start = input.indexOf(name)
+      const parse = () => parseExpression(input)
+
+      expect(parse).toThrow(ZslSyntaxError)
+      expect(parse).toThrow(ZslUnknownFunctionError)
+      expect(parse).toThrow(
+        expect.objectContaining({
+          code: 'UNKNOWN_FUNCTION',
+          functionName: name,
+          issues: [
+            expect.objectContaining({
+              kind: 'syntax',
+              span: { start, end: start + name.length },
+            }),
+          ],
+        }),
+      )
+    },
+  )
 
   // 괄호로 묶은 덧셈은 곱셈 AST의 왼쪽 피연산자가 된다.
   // 덧셈 범위에는 괄호가 포함되고, 리터럴 범위는 실제 숫자 위치를 가리킨다.

@@ -17,24 +17,6 @@ export class ZslValidationError extends ZslError<ZslIssue<'validation'>> {
   }
 }
 
-export class ZslUnknownFunctionError extends ZslValidationError {
-  override readonly name = 'ZslUnknownFunctionError'
-  override readonly code = 'UNKNOWN_FUNCTION'
-
-  constructor(
-    readonly functionName: string,
-    span: SourceSpan,
-  ) {
-    super([
-      {
-        kind: 'validation',
-        message: `등록되지 않은 함수 '${functionName}'입니다.`,
-        span,
-      },
-    ])
-  }
-}
-
 export class ZslInsufficientArgumentsError extends ZslValidationError {
   override readonly name = 'ZslInsufficientArgumentsError'
   override readonly code = 'INSUFFICIENT_ARGUMENTS'

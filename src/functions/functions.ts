@@ -18,13 +18,16 @@ export type EvaluateFunction = (
   span: SourceSpan,
 ) => LiteralValue
 
-const functions: ReadonlyMap<
+export const builtinFunctions: ReadonlyMap<
   string,
   { readonly minimumArguments: number; readonly evaluate: EvaluateFunction }
-> = new Map([['GET', { minimumArguments: 2, evaluate: get }]])
+> = new Map([
+  ['GET', { minimumArguments: 2, evaluate: get }],
+  ['EXIST', { minimumArguments: 2, evaluate: exist }],
+])
 
 export function resolveCall(call: CallAst): EvaluateFunction {
-  const fn = functions.get(call.name)
+  const fn = builtinFunctions.get(call.name)
   if (fn === undefined) {
     throw new ZslUnknownFunctionError(call.name, call.span)
   }
@@ -46,11 +49,37 @@ function get(
   context: ZslContext,
   span: SourceSpan,
 ): LiteralValue {
+  const value = readPath('GET', args, context)
+  if (value === undefined || value === null) {
+    return null
+  }
+  if (
+    typeof value === 'string' ||
+    typeof value === 'boolean' ||
+    (typeof value === 'number' && Number.isFinite(value))
+  ) {
+    return value
+  }
+  throw new ZslInvalidFunctionResultError('GET', span)
+}
+
+function exist(
+  args: readonly EvaluatedArgument[],
+  context: ZslContext,
+): boolean {
+  return readPath('EXIST', args, context) !== undefined
+}
+
+function readPath(
+  functionName: string,
+  args: readonly EvaluatedArgument[],
+  context: ZslContext,
+): unknown {
   let value: unknown = context
   for (const arg of args) {
     if (typeof arg.value !== 'string') {
       throw new ZslInvalidArgumentTypeError(
-        { functionName: 'GET', expectedType: 'string' },
+        { functionName, expectedType: 'string' },
         arg.span,
       )
     }
@@ -64,17 +93,7 @@ function get(
         ? descriptor.value
         : undefined
   }
-  if (value === undefined || value === null) {
-    return null
-  }
-  if (
-    typeof value === 'string' ||
-    typeof value === 'boolean' ||
-    (typeof value === 'number' && Number.isFinite(value))
-  ) {
-    return value
-  }
-  throw new ZslInvalidFunctionResultError('GET', span)
+  return value
 }
 
 function findOwnPropertyDescriptor(

@@ -11,7 +11,9 @@ import {
   ZslMissingGroupClosingParenError,
   ZslMissingOperandError,
   ZslTrailingTokenError,
+  ZslUnknownFunctionError,
 } from '../exception/index.js'
+import { builtinFunctions } from '../functions/functions.js'
 import { type Token, readToken } from '../lexer/index.js'
 
 const precedence: Readonly<Record<BinaryOperator, number>> = {
@@ -77,6 +79,9 @@ export function parseExpression(
           const open = readAt(token.span.end)
           if (open.kind !== 'leftParen') {
             throw new ZslMissingCallOpeningParenError(token.span)
+          }
+          if (!builtinFunctions.has(token.name)) {
+            throw new ZslUnknownFunctionError(token.name, token.span)
           }
           pending.push({
             kind: 'call',

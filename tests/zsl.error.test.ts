@@ -293,43 +293,59 @@ describe('ZSL errors', () => {
     })
   })
 
-  // 컴파일러는 미등록 함수와 인자 수가 부족한 함수를 서로 다른 검사 오류로 보고한다.
-  // 함수 이름과 인자 수 정보, 템플릿 원문에서 호출이 차지하는 범위를 함께 확인한다.
+  it('reports UNKNOWN_FUNCTION at the original template function name', () => {
+    assert.throws(
+      () => zsl.compile('😀 ${true || missing()}'),
+      (error: unknown) => {
+        expect(error).toBeInstanceOf(ZslUnknownFunctionError)
+        expect(error).toBeInstanceOf(ZslSyntaxError)
+        expect(error).toMatchObject({
+          code: 'UNKNOWN_FUNCTION',
+          functionName: 'missing',
+          message: 'ZSL 문법이 올바르지 않습니다.',
+          issues: [
+            {
+              kind: 'syntax',
+              message: "등록되지 않은 함수 'missing'입니다.",
+              span: { start: 13, end: 20 },
+            },
+          ],
+        })
+        return true
+      },
+    )
+  })
+
+  // 인자 수가 부족하면 호출 전체의 범위와 필요한 인자 수를 보고한다.
   it.each([
     {
-      input: 'missing()',
-      type: ZslUnknownFunctionError,
-      code: 'UNKNOWN_FUNCTION',
-      message: "등록되지 않은 함수 'missing'입니다.",
-      details: { functionName: 'missing' },
-    },
-    {
       input: 'GET()',
-      type: ZslInsufficientArgumentsError,
-      code: 'INSUFFICIENT_ARGUMENTS',
-      message: "'GET' 함수에는 인자가 최소 2개 필요합니다.",
-      details: { functionName: 'GET', minimumArguments: 2, actualArguments: 0 },
+      functionName: 'GET',
+      actualArguments: 0,
     },
+    { input: "EXIST('event')", functionName: 'EXIST', actualArguments: 1 },
   ])(
-    'reports $code while checking calls',
-    ({ input, type, code, message, details }) => {
+    'reports INSUFFICIENT_ARGUMENTS while checking $input',
+    ({ input, functionName, actualArguments }) => {
       assert.throws(
         () => zsl.compile(`\${${input}}`),
         (error: unknown) => {
-          expect(error).toBeInstanceOf(type)
+          expect(error).toBeInstanceOf(ZslInsufficientArgumentsError)
           expect(error).toBeInstanceOf(ZslValidationError)
           expect(error).toMatchObject({
-            name: type.name,
-            code,
+            name: 'ZslInsufficientArgumentsError',
+            code: 'INSUFFICIENT_ARGUMENTS',
+            functionName,
+            minimumArguments: 2,
+            actualArguments,
             message: 'ZSL 검사 또는 평가에 실패했습니다.',
             issues: [
               {
                 kind: 'validation',
-                message,
+                message: `'${functionName}' 함수에는 인자가 최소 2개 필요합니다.`,
                 span: { start: 2, end: input.length + 2 },
               },
             ],
-            ...details,
           })
           return true
         },

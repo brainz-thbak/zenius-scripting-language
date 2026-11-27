@@ -383,6 +383,14 @@ describe('ZSL templates', () => {
     expect(expression.evaluate({ event: { severity: 4 } })).toBe('정상')
   })
 
+  it('selects the false branch of an EXIST condition with an empty context', () => {
+    const expression = zsl.compile(
+      "${EXIST('event', 'severity') ? '있음' : '없음'}",
+    )
+
+    expect(expression.evaluate({})).toBe('없음')
+  })
+
   it('reports the missing comparison value at its template source span', () => {
     const expression = zsl.compile("🌐 ${1}\n${GET('event', 'severity') >= 5}")
 
@@ -445,8 +453,13 @@ describe('ZSL templates', () => {
     },
     {
       source: '🌐 ${1}\n${true ? 4 : nope()}',
+      kind: 'syntax',
+      span: { start: 21, end: 25 },
+    },
+    {
+      source: '🌐 ${1}\n${true ? 4 : GET()}',
       kind: 'validation',
-      span: { start: 21, end: 27 },
+      span: { start: 21, end: 26 },
     },
   ])('reports a $kind issue for "$source"', ({ source, kind, span }) => {
     const compile = () => zsl.compile(source)

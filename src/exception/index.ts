@@ -15,6 +15,7 @@ export {
   ZslSyntaxError,
   ZslTrailingTokenError,
   ZslUnexpectedCharacterError,
+  ZslUnknownFunctionError,
   ZslUnsupportedEscapeError,
   ZslUnterminatedStringError,
   ZslUnterminatedTemplateExpressionError,
@@ -31,7 +32,6 @@ export {
   ZslInvalidFunctionResultError,
   ZslInvalidLogicalOperandTypeError,
   ZslNonFiniteArithmeticResultError,
-  ZslUnknownFunctionError,
   ZslValidationError,
 } from './validation-error.js'
 export { ZslError } from './zsl-error.js'

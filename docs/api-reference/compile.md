@@ -18,14 +18,15 @@ compile(source: string): Expression
 
 ## 설명
 
-`source`의 타입과 길이를 확인한 뒤 템플릿을 파싱한다. 표현식 안의 함수 이름과 최소 인자 수는 컴파일 단계에서 검사한다. 평가 단계에서 실행 여부를 결정하는 삼항 연산이나 논리 연산의 분기도 검사 대상이다.
+`source`의 타입과 길이를 확인한 뒤 템플릿을 파싱한다. 등록되지 않은 함수 이름은 파서가 거부한다. 파싱이 끝나면 함수마다 최소 인자 수를 검사한다. 파싱과 검사는 평가에서 건너뛰는 삼항 연산이나 논리 연산의 분기에도 적용된다.
 
 | 조건                                              | 오류                               |
 | ------------------------------------------------- | ---------------------------------- |
 | `source`가 문자열이 아니다.                       | `ZslInvalidSourceTypeError`        |
 | 원문 길이가 인스턴스의 `maxInputLength`를 넘는다. | `ZslInputLengthLimitExceededError` |
 | 템플릿이나 표현식 문법이 잘못됐다.                | `ZslSyntaxError` 계열              |
-| 등록 함수 이름이나 최소 인자 수가 잘못됐다.       | `ZslValidationError` 계열          |
+| 미등록 함수를 호출했다.                           | `ZslUnknownFunctionError`          |
+| 등록 함수 호출의 인자 수가 최솟값보다 작다.       | `ZslInsufficientArgumentsError`    |
 
 ## 예제
 

@@ -1,12 +1,26 @@
 import { describe, expect, it, vi } from 'vitest'
 import { evaluateExpression } from '../src/evaluator/index.js'
-import { ZslValidationError } from '../src/exception/index.js'
+import {
+  ZslUnknownFunctionError,
+  ZslValidationError,
+} from '../src/exception/index.js'
 import { parseExpression } from '../src/parser/index.js'
 import { literalCases } from './zsl.literal-cases.js'
 
 const overflowingProduct = `${'9'.repeat(308)} * 2`
 
 describe('evaluateExpression', () => {
+  it('rejects a directly supplied AST with an unregistered call', () => {
+    expect(() =>
+      evaluateExpression({
+        kind: 'call',
+        name: 'missing',
+        args: [],
+        span: { start: 0, end: 9 },
+      }),
+    ).toThrow(ZslUnknownFunctionError)
+  })
+
   // 파싱한 리터럴과 연산을 평가해 값과 타입을 확인한다.
   // 연산자 우선순위, 왼쪽 결합, 단락 평가, null에서만 적용하는 기본값 규칙을 포함한다.
   it.each([
@@ -418,12 +432,11 @@ describe('GET', () => {
     expect(getter).not.toHaveBeenCalled()
   })
 
-  // 호출 이름, 인자 개수, 인자 타입, 인자 표현식에서 난 오류를 구분한다.
+  // 인자 개수, 인자 타입, 인자 표현식에서 난 오류를 구분한다.
   // 진단은 호출 전체, 잘못된 인자, 또는 인자 안에서 평가가 실패한 위치를 가리킨다.
   it.each([
     { input: 'GET()', source: 'GET()' },
     { input: "GET('event')", source: "GET('event')" },
-    { input: 'missing()', source: 'missing()' },
     { input: "GET(false, 'severity')", source: 'false' },
     { input: "GET('event', (1 + 2))", source: '(1 + 2)' },
     { input: "GET('missing', true)", source: 'true' },
@@ -482,5 +495,71 @@ describe('GET', () => {
     const ast = parseExpression(input)
 
     expect(evaluateExpression(ast, { event: { key: 'key' } })).toBe('key')
+  })
+})
+
+describe('EXIST', () => {
+  it.each([
+    { label: 'a stored number', event: { severity: 6 }, expected: true },
+    { label: 'a stored null', event: { severity: null }, expected: true },
+    { label: 'a stored false', event: { severity: false }, expected: true },
+    { label: 'a stored zero', event: { severity: 0 }, expected: true },
+    { label: 'a stored empty string', event: { severity: '' }, expected: true },
+    { label: 'a missing property', event: {}, expected: false },
+    {
+      label: 'a property storing undefined',
+      event: { severity: undefined },
+      expected: false,
+    },
+  ])('checks existence for $label', ({ event, expected }) => {
+    const ast = parseExpression("EXIST('event', 'severity')")
+
+    expect(evaluateExpression(ast, { event })).toBe(expected)
+  })
+
+  it.each([
+    { input: "EXIST('event', 'source')", expected: true },
+    { input: "EXIST('event', 'source', 'ip')", expected: false },
+  ])('evaluates $input for an empty source object', ({ input, expected }) => {
+    const ast = parseExpression(input)
+
+    expect(evaluateExpression(ast, { event: { source: {} } })).toBe(expected)
+  })
+
+  it('matches a canonically equivalent Unicode property name', () => {
+    const ast = parseExpression("EXIST('event', '가')")
+    const event = { ['가'.normalize('NFD')]: '완료' }
+
+    expect(evaluateExpression(ast, { event })).toBe(true)
+  })
+
+  it('returns false for a final accessor without invoking its getter', () => {
+    const getter = vi.fn(() => 6)
+    const event = Object.defineProperty({}, 'severity', { get: getter })
+    const ast = parseExpression("EXIST('event', 'severity')")
+
+    expect(evaluateExpression(ast, { event })).toBe(false)
+    expect(getter).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { input: "EXIST('event', 1)", span: { start: 15, end: 16 } },
+    { input: "EXIST('missing', 'nested', 1)", span: { start: 27, end: 28 } },
+  ])('reports an invalid argument at its span in $input', ({ input, span }) => {
+    const ast = parseExpression(input)
+
+    expect(() => evaluateExpression(ast, { event: {} })).toThrow(
+      expect.objectContaining({
+        code: 'INVALID_ARGUMENT_TYPE',
+        functionName: 'EXIST',
+        expectedType: 'string',
+        issues: [
+          expect.objectContaining({
+            kind: 'validation',
+            span,
+          }),
+        ],
+      }),
+    )
   })
 })

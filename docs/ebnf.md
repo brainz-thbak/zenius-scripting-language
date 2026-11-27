@@ -64,6 +64,17 @@ primary = literal | call | "(", spacing, expression, spacing, ")" ;
 
 연산자 앞뒤의 `spacing`도 생략할 수 있으므로 `1+2`와 `1 + 2`는 둘 다 문법에 맞는다.
 
+## 함수 호출 읽기
+
+```ebnf
+call = builtin function, spacing, "(", spacing, [ arguments, spacing ], ")" ;
+arguments = expression, { spacing, ",", spacing, expression } ;
+```
+
+`call`은 `builtin function`에 열거된 함수 이름과 괄호를 읽는다. 괄호 안에는 인자를 생략하거나 쉼표로 구분한 표현식을 넣을 수 있다. 파서는 목록에 없는 `missing()`을 `UNKNOWN_FUNCTION` 문법 오류로 보고한다. `GET('event')`는 파싱되고, 검사기가 인자 수 부족을 보고한다. `GET('event', 1)`은 인자 수 검사를 통과하고, 평가기가 두 번째 인자의 타입 오류를 보고한다.
+
+내장 함수 이름은 EBNF의 `builtin function` 규칙과 구현의 함수 등록 목록에 정의한다. 함수별 인자 수, 인자 타입과 반환 규칙은 내장 함수 문서에서 확인할 수 있다. [ZSL 문법](../spec/zsl.ebnf) · [내장 함수](functions.md)
+
 ## ZSL에서 사용하는 곳
 
 렉서와 파서는 EBNF의 규칙을 TypeScript로 구현한다. 예를 들어 `true + 1`은 문법에 따라 연산 노드로 묶을 수 있다. 평가기는 양쪽 값이 숫자여야 한다는 언어 규칙에 따라 이 식을 거부한다. [언어 명세](language.md#사칙연산과-괄호)

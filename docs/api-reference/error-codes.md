@@ -82,6 +82,16 @@ zsl.compile('${' + '9'.repeat(309) + '}')
 zsl.compile('${GET}')
 ```
 
+### ZslUnknownFunctionError
+
+`UNKNOWN_FUNCTION`. 파서가 등록되지 않은 함수 호출을 만났다. 진단 범위는 함수 이름이다.
+
+생성자는 `functionName: string`을 `span` 앞에 받는다.
+
+```ts
+zsl.compile('${missing()}')
+```
+
 ### ZslMissingOperandError
 
 `MISSING_OPERAND`. 피연산자가 필요한 위치에 표현식이 없다.
@@ -150,16 +160,6 @@ new ZslValidationError(issues: readonly ZslIssue<'validation'>[])
 new ZslValidationError([])
 ```
 
-### ZslUnknownFunctionError
-
-`UNKNOWN_FUNCTION`. 컴파일 중 등록되지 않은 함수 호출을 만났다.
-
-생성자는 `functionName: string`을 `span` 앞에 받는다.
-
-```ts
-zsl.compile('${missing()}')
-```
-
 ### ZslInsufficientArgumentsError
 
 `INSUFFICIENT_ARGUMENTS`. 컴파일 중 함수 호출의 인자 수가 해당 함수의 최솟값보다 적다.
@@ -176,7 +176,7 @@ zsl.compile('${GET()}')
 
 ### ZslInvalidArgumentTypeError
 
-`INVALID_ARGUMENT_TYPE`. 평가 중 `GET`의 인자에서 문자열 이외의 값을 얻었다.
+`INVALID_ARGUMENT_TYPE`. 평가 중 `GET` 또는 `EXIST`의 인자가 문자열 이외의 값으로 평가됐다.
 
 생성자는 아래 속성이 있는 객체를 `span` 앞에 받는다.
 
