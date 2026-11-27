@@ -44,4 +44,4 @@ npm --prefix website run dev
 
 플레이그라운드에서 템플릿과 JSON 컨텍스트를 편집하고 평가 결과를 확인한다. 사이트 설정과 React 코드는 `website/`에 있다. 문서 페이지는 `docs/`의 Markdown을 읽는다. 엔진 코드를 수정하면 루트에서 `npm run build`를 다시 실행한다.
 
-GitHub Pages의 배포 소스는 저장소 **Settings → Pages → Source**에서 **GitHub Actions**를 선택한다. **Actions**에서 **Deploy the ZSL website** 워크플로를 실행한다. 워크플로는 GitHub Pages의 URL 경로에 맞춰 `website/build`에 정적 사이트를 생성하고 배포한다.
+GitHub Pages는 **GitHub Actions**를 배포 소스로 사용한다. `main`에 푸시하면 **Deploy the ZSL website** 워크플로가 자동으로 실행된다. **Actions**에서 같은 워크플로를 수동으로 실행할 수도 있다. 워크플로는 GitHub Pages의 URL 경로에 맞춰 `website/build`에 정적 사이트를 생성하고 배포한다.
