@@ -1,9 +1,4 @@
-import type {
-  BinaryOperator,
-  CallAst,
-  ExpressionAst,
-  SourceSpan,
-} from '../ast/index.js'
+import type { BinaryOperator, ExpressionAst, SourceSpan } from '../ast/index.js'
 import {
   ZslExpectedArgumentDelimiterError,
   ZslMissingCallOpeningParenError,
@@ -15,22 +10,7 @@ import {
 } from '../exception/index.js'
 import { builtinFunctions } from '../functions/functions.js'
 import { type Token, readToken } from '../lexer/index.js'
-
-const precedence: Readonly<Record<BinaryOperator, number>> = {
-  '??': 1,
-  '||': 2,
-  '&&': 3,
-  '==': 4,
-  '!=': 4,
-  '<': 5,
-  '<=': 5,
-  '>': 5,
-  '>=': 5,
-  '+': 6,
-  '-': 6,
-  '*': 7,
-  '/': 7,
-}
+import { binaryOperatorPrecedence } from '../operators.js'
 
 interface PendingCall {
   readonly kind: 'call'
@@ -62,21 +42,24 @@ export function parseExpression(
   { start, end }: SourceSpan = { start: 0, end: source.length },
 ): ExpressionAst {
   const pending: PendingExpression[] = []
-  const readAt = (offset: number) => readToken(source, offset, end)
+  let offset = start
   let expression: ExpressionAst | undefined
 
-  consumeToken: for (
-    let token = readAt(start);
-    ;
-    token = readAt(token.span.end)
-  ) {
+  const readNextToken = () => {
+    const token = readToken(source, offset, end)
+    offset = token.span.end
+    return token
+  }
+
+  while (true) {
+    const token = readNextToken()
     if (expression === undefined) {
       switch (token.kind) {
         case 'leftParen':
           pending.push({ kind: 'group', start: token.span.start })
           continue
         case 'identifier': {
-          const open = readAt(token.span.end)
+          const open = readNextToken()
           if (open.kind !== 'leftParen') {
             throw new ZslMissingCallOpeningParenError(token.span)
           }
@@ -89,127 +72,129 @@ export function parseExpression(
             start: token.span.start,
             args: [],
           })
-          token = open
           continue
         }
         case 'literal':
           expression = { kind: 'literal', value: token.value, span: token.span }
           continue
-        case 'rightParen': {
-          const call = pending.at(-1)
-          if (call?.kind === 'call' && call.args.length === 0) {
-            pending.pop()
-            expression = finishCall(call, token.span.end)
-            continue
-          }
+        case 'rightParen':
+          // 피연산자를 기다리는 중에도 닫는 괄호는 빈 호출을 닫을 수 있다.
           break
-        }
+        default:
+          throw new ZslMissingOperandError(token.span)
       }
+    } else {
+      expression = reduceOperators(pending, expression, token)
+      switch (token.kind) {
+        case 'operator':
+          pending.push({
+            kind: 'binary',
+            operator: token.operator,
+            left: expression,
+          })
+          expression = undefined
+          continue
+        case 'question':
+          pending.push({ kind: 'awaitingColon', condition: expression })
+          expression = undefined
+          continue
+      }
+    }
+
+    const frame = pending.at(-1)
+    if (frame?.kind === 'call') {
+      if (token.kind !== 'comma' && token.kind !== 'rightParen') {
+        throw new ZslExpectedArgumentDelimiterError(token.span)
+      }
+      if (expression !== undefined) {
+        frame.args.push(expression)
+      } else if (frame.args.length > 0) {
+        throw new ZslMissingOperandError(token.span)
+      }
+      if (token.kind === 'comma') {
+        expression = undefined
+        continue
+      }
+      pending.pop()
+      expression = {
+        kind: 'call',
+        name: frame.name,
+        args: frame.args,
+        span: { start: frame.start, end: token.span.end },
+      }
+      continue
+    }
+    if (expression === undefined) {
       throw new ZslMissingOperandError(token.span)
     }
 
-    for (
-      let frame = pending.at(-1);
-      frame && shouldReduce(frame, token);
-      frame = pending.at(-1)
-    ) {
-      pending.pop()
-      switch (frame.kind) {
-        case 'binary':
-          expression = {
-            kind: 'binary',
-            operator: frame.operator,
-            left: frame.left,
-            right: expression,
-            span: { start: frame.left.span.start, end: expression.span.end },
-          }
-          break
-        case 'group':
-          if (token.kind !== 'rightParen') {
-            throw new ZslMissingGroupClosingParenError(token.span)
-          }
-          expression = {
-            ...expression,
-            span: { start: frame.start, end: token.span.end },
-          }
-          continue consumeToken
-        case 'call':
-          if (token.kind !== 'comma' && token.kind !== 'rightParen') {
-            throw new ZslExpectedArgumentDelimiterError(token.span)
-          }
-          frame.args.push(expression)
-          if (token.kind === 'comma') {
-            pending.push(frame)
-            expression = undefined
-          } else {
-            expression = finishCall(frame, token.span.end)
-          }
-          continue consumeToken
-        case 'awaitingColon':
-          if (token.kind !== 'colon') {
-            throw new ZslMissingConditionalColonError(token.span)
-          }
-          pending.push({
-            kind: 'awaitingFalseBranch',
-            condition: frame.condition,
-            whenTrue: expression,
-          })
-          expression = undefined
-          continue consumeToken
-        case 'awaitingFalseBranch':
-          expression = {
-            kind: 'conditional',
-            condition: frame.condition,
-            whenTrue: frame.whenTrue,
-            whenFalse: expression,
-            span: {
-              start: frame.condition.span.start,
-              end: expression.span.end,
-            },
-          }
-          break
+    if (frame?.kind === 'group') {
+      if (token.kind !== 'rightParen') {
+        throw new ZslMissingGroupClosingParenError(token.span)
       }
+      pending.pop()
+      expression = {
+        ...expression,
+        span: { start: frame.start, end: token.span.end },
+      }
+      continue
+    }
+    if (frame?.kind === 'awaitingColon') {
+      if (token.kind !== 'colon') {
+        throw new ZslMissingConditionalColonError(token.span)
+      }
+      pending[pending.length - 1] = {
+        kind: 'awaitingFalseBranch',
+        condition: frame.condition,
+        whenTrue: expression,
+      }
+      expression = undefined
+      continue
     }
 
-    switch (token.kind) {
-      case 'eof':
+    if (token.kind === 'eof') {
+      return expression
+    }
+    throw new ZslTrailingTokenError(token.span)
+  }
+}
+
+function reduceOperators(
+  pending: PendingExpression[],
+  expression: ExpressionAst,
+  token: Token,
+): ExpressionAst {
+  while (true) {
+    const frame = pending.at(-1)
+    if (frame?.kind === 'binary') {
+      if (
+        token.kind === 'operator' &&
+        binaryOperatorPrecedence[frame.operator] <
+          binaryOperatorPrecedence[token.operator]
+      ) {
         return expression
-      case 'operator':
-        pending.push({
-          kind: 'binary',
-          operator: token.operator,
-          left: expression,
-        })
-        break
-      case 'question':
-        pending.push({ kind: 'awaitingColon', condition: expression })
-        break
-      default:
-        throw new ZslTrailingTokenError(token.span)
+      }
+      expression = {
+        kind: 'binary',
+        operator: frame.operator,
+        left: frame.left,
+        right: expression,
+        span: { start: frame.left.span.start, end: expression.span.end },
+      }
+    } else if (frame?.kind === 'awaitingFalseBranch') {
+      if (token.kind === 'operator' || token.kind === 'question') {
+        return expression
+      }
+      expression = {
+        kind: 'conditional',
+        condition: frame.condition,
+        whenTrue: frame.whenTrue,
+        whenFalse: expression,
+        span: { start: frame.condition.span.start, end: expression.span.end },
+      }
+    } else {
+      return expression
     }
-    expression = undefined
-  }
-}
-
-function finishCall(call: PendingCall, end: number): CallAst {
-  return {
-    kind: 'call',
-    name: call.name,
-    args: call.args,
-    span: { start: call.start, end },
-  }
-}
-
-function shouldReduce(frame: PendingExpression, token: Token): boolean {
-  switch (token.kind) {
-    case 'operator':
-    case 'question':
-      return (
-        frame.kind === 'binary' &&
-        (token.kind === 'question' ||
-          precedence[frame.operator] >= precedence[token.operator])
-      )
-    default:
-      return true
+    pending.pop()
   }
 }

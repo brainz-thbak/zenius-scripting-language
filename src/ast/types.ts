@@ -1,3 +1,12 @@
+import type { BinaryOperator } from '../operators.js'
+
+export type {
+  ArithmeticOperator,
+  BinaryOperator,
+  EqualityOperator,
+  OrderingOperator,
+} from '../operators.js'
+
 export interface SourceSpan {
   readonly start: number
   readonly end: number
@@ -6,20 +15,6 @@ export interface SourceSpan {
 export type NumericValue = number | bigint
 
 export type LiteralValue = string | NumericValue | boolean | null
-
-export type ArithmeticOperator = '+' | '-' | '*' | '/'
-
-export type EqualityOperator = '==' | '!='
-
-export type OrderingOperator = '<' | '<=' | '>' | '>='
-
-export type BinaryOperator =
-  | ArithmeticOperator
-  | EqualityOperator
-  | OrderingOperator
-  | '&&'
-  | '||'
-  | '??'
 
 interface LiteralAst {
   readonly kind: 'literal'

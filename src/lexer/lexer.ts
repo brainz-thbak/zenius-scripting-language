@@ -7,6 +7,12 @@ import {
   ZslUnsupportedEscapeError,
   ZslUnterminatedStringError,
 } from '../exception/index.js'
+import { isBinaryOperator, maxBinaryOperatorLength } from '../operators.js'
+import {
+  isStringQuote,
+  scanQuotedString,
+  type StringQuote,
+} from './quoted-string.js'
 
 export type Token = { readonly span: SourceSpan } & (
   | { readonly kind: 'literal'; readonly value: LiteralValue }
@@ -53,35 +59,23 @@ export function readToken(
 }
 
 function readTokenAt(source: string, start: number, limit: number): Token {
-  const pair = source.slice(start, Math.min(start + 2, limit))
-  switch (pair) {
-    case '&&':
-    case '||':
-    case '??':
-    case '==':
-    case '!=':
-    case '<=':
-    case '>=':
+  for (
+    let end = Math.min(start + maxBinaryOperatorLength, limit, source.length);
+    end > start;
+    end--
+  ) {
+    const spelling = source.slice(start, end)
+    if (isBinaryOperator(spelling)) {
       return {
         kind: 'operator',
-        operator: pair,
-        span: { start, end: start + 2 },
+        operator: spelling,
+        span: { start, end },
       }
+    }
   }
 
   const character = source.charAt(start)
   switch (character) {
-    case '+':
-    case '-':
-    case '*':
-    case '/':
-    case '<':
-    case '>':
-      return {
-        kind: 'operator',
-        operator: character,
-        span: { start, end: start + 1 },
-      }
     case '?':
       return { kind: 'question', span: { start, end: start + 1 } }
     case ':':
@@ -93,7 +87,7 @@ function readTokenAt(source: string, start: number, limit: number): Token {
     case ',':
       return { kind: 'comma', span: { start, end: start + 1 } }
   }
-  if (character === '"' || character === "'") {
+  if (isStringQuote(character)) {
     return readString(source, start, limit, character)
   }
   if (/[0-9]/.test(character)) {
@@ -140,39 +134,39 @@ function readString(
   source: string,
   start: number,
   limit: number,
-  quote: string,
+  quote: StringQuote,
 ): Token {
   let value = ''
-  for (let index = start + 1; index < limit; index++) {
-    const character = source.charAt(index)
-    if (character === quote) {
-      return literalToken(value, start, index + 1)
-    }
-    if (character === '\\') {
-      if (index + 1 === limit) {
-        break
+  const end = scanQuotedString(
+    source,
+    start,
+    limit,
+    quote,
+    (character, rawStart, escaped) => {
+      if (escaped) {
+        const decoded = stringEscapes.get(character)
+        if (decoded === undefined) {
+          throw new ZslUnsupportedEscapeError({
+            start: rawStart,
+            end: characterEnd(source, rawStart + 1, limit),
+          })
+        }
+        value += decoded
+        return
       }
-      const escapedCharacter = source.charAt(index + 1)
-      const decoded = stringEscapes.get(escapedCharacter)
-      if (decoded === undefined) {
-        throw new ZslUnsupportedEscapeError({
-          start: index,
-          end: characterEnd(source, index + 1, limit),
-        })
-      }
-      value += decoded
-      index++
-    } else {
-      if (source.charCodeAt(index) < 0x20) {
+      if (character.charCodeAt(0) < 0x20) {
         throw new ZslInvalidStringCharacterError({
-          start: index,
-          end: index + 1,
+          start: rawStart,
+          end: rawStart + 1,
         })
       }
       value += character
-    }
+    },
+  )
+  if (end === undefined) {
+    throw new ZslUnterminatedStringError({ start, end: limit })
   }
-  throw new ZslUnterminatedStringError({ start, end: limit })
+  return literalToken(value, start, end)
 }
 
 function readNumber(source: string, start: number, limit: number): Token {

@@ -1,6 +1,7 @@
 import type { TemplateAst, TemplatePart } from '../ast/index.js'
 import { checkExpression } from '../checker/index.js'
 import { ZslUnterminatedTemplateExpressionError } from '../exception/index.js'
+import { isStringQuote, scanQuotedString } from '../lexer/quoted-string.js'
 import { parseExpression } from '../parser/index.js'
 
 export function compileTemplate(source: string): TemplateAst {
@@ -54,21 +55,15 @@ export function compileTemplate(source: string): TemplateAst {
 }
 
 function findExpressionEnd(source: string, start: number): number {
-  let quote: '"' | "'" | undefined
-  for (let index = start; index < source.length; index++) {
+  const limit = source.length
+  for (let index = start; index < limit; ) {
     const character = source.charAt(index)
-    if (quote === undefined) {
-      if (character === '}') {
-        return index
-      }
-      if (character === '"' || character === "'") {
-        quote = character
-      }
-    } else if (character === '\\') {
-      index++
-    } else if (character === quote) {
-      quote = undefined
+    if (character === '}') {
+      return index
     }
+    index = isStringQuote(character)
+      ? (scanQuotedString(source, index, limit, character) ?? limit)
+      : index + 1
   }
-  return source.length
+  return limit
 }

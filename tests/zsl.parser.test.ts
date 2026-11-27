@@ -52,6 +52,14 @@ describe('readToken', () => {
     })
   })
 
+  it('reads the longest operator within the source limit', () => {
+    expect(readToken('x<=y', 1, 2)).toEqual({
+      kind: 'operator',
+      operator: '<',
+      span: { start: 1, end: 2 },
+    })
+  })
+
   // 공백을 사이에 둔 괄호와 연산자를 각각 한 글자 토큰으로 읽는다.
   // 토큰 범위는 입력 문자열에서 해당 기호가 있는 위치와 일치해야 한다.
   it('reads arithmetic operators and parentheses with their original ranges', () => {

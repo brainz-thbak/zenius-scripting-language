@@ -899,6 +899,12 @@ describe('ZSL templates', () => {
       span: { start: 3, end: 5 },
     },
     {
+      source: 'x${"\\😀"}',
+      code: 'UNSUPPORTED_ESCAPE',
+      message: '지원하지 않는 이스케이프입니다.',
+      span: { start: 4, end: 7 },
+    },
+    {
       source: '${"\\q"',
       code: 'UNTERMINATED_TEMPLATE_EXPRESSION',
       message: "템플릿 표현식을 닫는 '}'가 없습니다.",
